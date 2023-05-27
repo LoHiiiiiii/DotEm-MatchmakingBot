@@ -398,4 +398,4 @@ FodyWeavers.xsd
 *.sln.iml
 
 # Secrets
-*/launchSettings.json
+*/*/launchSettings.json
