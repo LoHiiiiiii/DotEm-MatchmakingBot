@@ -23,8 +23,6 @@ namespace DotemDiscord.Handlers {
 			await _commandService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
 		}
 
-		public string DogFever() => "DogFever";
-
 		private async Task HandleTextCommand(SocketMessage messageParam) {
 			var message = messageParam as SocketUserMessage;
 			if (message == null) return;

@@ -18,7 +18,8 @@ namespace DotemDiscord {
 
         static IServiceProvider CreateProvider() {
             var clientConfig = new DiscordSocketConfig { 
-                GatewayIntents = GatewayIntents.MessageContent | GatewayIntents.AllUnprivileged
+                GatewayIntents = GatewayIntents.MessageContent | GatewayIntents.AllUnprivileged,
+                UseInteractionSnowflakeDate = true,
 			};
 
             var interactionConfig = new InteractionServiceConfig() {
@@ -31,7 +32,8 @@ namespace DotemDiscord {
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton(new CommandServiceConfig())
                 .AddSingleton<CommandService>()
-                .AddSingleton(interactionConfig)
+                .AddSingleton<SearchMessageHandler>()
+				.AddSingleton(interactionConfig)
                 .AddSingleton<InteractionService>()
 				.AddSingleton<TextCommandHandler>()
                 .AddSingleton<SlashCommandHandler>()
