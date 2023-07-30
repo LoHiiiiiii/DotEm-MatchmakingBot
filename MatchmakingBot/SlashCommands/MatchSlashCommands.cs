@@ -14,18 +14,19 @@ namespace DotemDiscord.SlashCommands {
 			_searchMessageHandler = searchMessageHandler;
 		}
 
-		[SlashCommand("match", "Matches you for a games for a certain period of time")]
+		[SlashCommand("match", "Matches you for games for a certain period of time")]
 		[Alias("m")]
-		public async Task SearchMatchSlashCommand(string gameIds, int duration = 30) {
+		public async Task SearchMatchSlashCommand(string gameIds, int? duration, string? description = null) {
 			await DeferAsync();
 			var idArray = gameIds.Split(' ');
-			var expireTime = DateTimeOffset.Now.AddMinutes(duration);
-			var searches = idArray.Select(id => new SearchDetails(id, id, expireTime)).ToArray();
+			var expireTime = DateTimeOffset.Now.AddMinutes(duration ?? 30);
+			//var searches = idArray.Select(id => new SearchDetails(id, id, expireTime)).ToArray();
 			var message = await GetOriginalResponseAsync();
-			var buttons = await _searchMessageHandler.AddMessage(message, searches);
-			await ModifyOriginalResponseAsync(x => { 
+			//var buttons = await _searchMessageHandler.AddMessage(message, searches);
+
+			await ModifyOriginalResponseAsync(x => {
 				x.Content = $"Searching until {expireTime.ToLocalTime().ToString("HH.mm")}"; 
-				x.Components = buttons; 
+				//x.Components = buttons; 
 			});
 		}
 	}

@@ -7,27 +7,28 @@ namespace DotemDiscord.Handlers {
 	public class SearchMessageHandler {
 
 		private readonly DiscordSocketClient _client;
-		private Dictionary<ulong, PlayerMessages> playerMessages = new Dictionary<ulong, PlayerMessages>();
+		private Dictionary<ulong, PlayerResponses> playerResponses = new Dictionary<ulong, PlayerResponses>();
 
-		private class PlayerMessages {
+		private class PlayerResponses {
 			public ulong Id { get; private set; }
-			public HashSet<MessageDetails> Messages { get; } = new HashSet<MessageDetails>();
+			public HashSet<ResponseDetail> Responses { get; } = new HashSet<ResponseDetail>();
 
-			public PlayerMessages(ulong id) {
+			public PlayerResponses(ulong id) {
 				Id = id;
 			}
 		}
 
-		private class MessageDetails {
+		private class ResponseDetail {
 			public ulong MessageId { get; set; }
 			public ulong ChannelId { get; set; }
 			public HashSet<SearchDetails> Searches { get; } = new HashSet<SearchDetails>();
 
-			public MessageDetails(ulong messageId, ulong channelId) {
+			public ResponseDetail(ulong messageId, ulong channelId) {
 				MessageId = messageId;
 				ChannelId = channelId;
 			}
 		}
+
 		public SearchMessageHandler(DiscordSocketClient client) {
 			_client = client;
 		}
@@ -35,25 +36,27 @@ namespace DotemDiscord.Handlers {
 		public void PlayerSearchCanceled(string playerId, params string[] gameKeys) {
 			var parsed = ulong.TryParse(playerId, out var id);
 			if (!parsed) return;
-			if (!playerMessages.ContainsKey(id)) return;
+			if (!playerResponses.ContainsKey(id)) return;
+			// TODO: Cancel seaarch
 		}
 
 
-		public async Task<MessageComponent> AddMessage(IUserMessage message, SearchDetails[] searches) {
-			var messageDetails = new MessageDetails(message.Id, message.Channel.Id);
-			messageDetails.Searches.UnionWith(searches.ToHashSet());
-			PlayerMessages player;
-			if (playerMessages.ContainsKey(message.Author.Id)) {
-				player = playerMessages[message.Author.Id];
+		public async Task<(string? content, MessageComponent? components)> CreateMatchSearchParts(IUserMessage response, IUser user, string[] gameIds, int duration, string description) {
+			var messageDetails = new ResponseDetail(response.Id, response.Channel.Id);
+			//messageDetails.Searches.UnionWith(searches.ToHashSet());
+			PlayerResponses player;
+			if (playerResponses.ContainsKey(user.Id)) {
+				player = playerResponses[user.Id];
 			} else {
-				player = new PlayerMessages(message.Author.Id);
-				playerMessages.Add(player.Id, player);
+				player = new PlayerResponses(user.Id);
+				playerResponses.Add(player.Id, player);
 			}
-			player.Messages.Add(messageDetails);
-			return await GetMatchButtons(messageDetails);
+			player.Responses.Add(messageDetails);
+			var buttons =  await GetMatchButtons(messageDetails);
+			return (null, null);
 		}
 
-		private async Task<MessageComponent> GetMatchButtons(MessageDetails details) {
+		private async Task<MessageComponent> GetMatchButtons(ResponseDetail details) {
 			var channel = await _client.GetChannelAsync(details.ChannelId);
 			IMessage? message = null;
 
@@ -65,7 +68,7 @@ namespace DotemDiscord.Handlers {
 			var builder = new ComponentBuilder();
 			if (message == null || !(message is IUserMessage userMessage)) return builder.Build();
 			foreach (SearchDetails search in details.Searches) {
-				builder.WithButton(search.GameName, search.GameId);
+				builder.WithButton(search.GameId, search.GameId);
 			}
 
 			return builder.Build();
