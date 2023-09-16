@@ -9,7 +9,6 @@
 		public int PlayerCount { get; }
 		public string? Description { get; }
 
-
 		public SearchDetails(string gameId, string userId, string serverId, DateTimeOffset expireTime, int playerCount, string? description) {
 			GameId = gameId;
 			UserId = userId;

@@ -1,8 +1,9 @@
 ﻿namespace Matchmaker.Model {
 	public record SearchResult {
-		public record Searching(List<SearchDetails> searchDetails) : SearchResult;
+		public record Searching(SearchDetails[] searchDetails) : SearchResult;
 		public record Found(string[] playerIds, string gameId, string? description = null) : SearchResult;
-		public record Suggestions(List<SearchDetails> suggestions, bool playable) : SearchResult;
+		public record Suggestions((string gameId, int playercount, string? description)[]? playableSuggestions = null, 
+			(string gameId, int playercount, string? description)[]? searchSuggestions = null) : SearchResult;
 		public record NoSearch() : SearchResult;
 
 		private SearchResult() { }
