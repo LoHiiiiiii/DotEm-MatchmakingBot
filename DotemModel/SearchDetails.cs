@@ -1,4 +1,4 @@
-﻿namespace Matchmaker.Model {
+﻿namespace DotemModel {
 	public class SearchDetails {
 
 		public Guid SearchId { get; } = Guid.NewGuid();

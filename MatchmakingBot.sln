@@ -5,10 +5,22 @@ VisualStudioVersion = 17.5.33627.172
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotemDiscord", "MatchmakingBot\DotemDiscord.csproj", "{9763E87A-D48F-434B-80D1-22D0F15C66EE}"
 	ProjectSection(ProjectDependencies) = postProject
+		{CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7} = {CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7}
+		{E13986B5-2CCA-48E5-A7AC-A5BA6B56083F} = {E13986B5-2CCA-48E5-A7AC-A5BA6B56083F}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotemMatchmaker", "Matchmaker\DotemMatchmaker.csproj", "{E462D777-AC2A-4C73-943C-3953883063FA}"
+	ProjectSection(ProjectDependencies) = postProject
+		{CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7} = {CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotemChatMatchmaker", "ChatMatchmaker\DotemChatMatchmaker.csproj", "{E13986B5-2CCA-48E5-A7AC-A5BA6B56083F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7} = {CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7}
 		{E462D777-AC2A-4C73-943C-3953883063FA} = {E462D777-AC2A-4C73-943C-3953883063FA}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Matchmaker", "Matchmaker\Matchmaker.csproj", "{E462D777-AC2A-4C73-943C-3953883063FA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotemModel", "DotemModel\DotemModel.csproj", "{CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,6 +36,14 @@ Global
 		{E462D777-AC2A-4C73-943C-3953883063FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E462D777-AC2A-4C73-943C-3953883063FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E462D777-AC2A-4C73-943C-3953883063FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E13986B5-2CCA-48E5-A7AC-A5BA6B56083F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E13986B5-2CCA-48E5-A7AC-A5BA6B56083F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E13986B5-2CCA-48E5-A7AC-A5BA6B56083F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E13986B5-2CCA-48E5-A7AC-A5BA6B56083F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CB960F7A-C6B3-4CD8-B2B5-61BC0BD9CDA7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

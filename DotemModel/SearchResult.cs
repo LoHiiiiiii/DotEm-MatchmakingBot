@@ -1,4 +1,4 @@
-﻿namespace Matchmaker.Model {
+﻿namespace DotemModel {
 	public record SearchResult {
 		public record Searching(SearchDetails[] searchDetails) : SearchResult;
 		public record Found(string[] playerIds, string gameId, string? description = null) : SearchResult;

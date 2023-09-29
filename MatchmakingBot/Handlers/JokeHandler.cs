@@ -5,7 +5,7 @@ using Discord.Commands;
 
 namespace DotemDiscord.Handlers {
 	public class JokeHandler {
-		private string[] muikeaPrefixes = new string[] { ",m", "-m" };
+		private readonly string[] muikeaPrefixes = new [] { ",m", "-m"};
 
 		public async Task<bool> TryMuikea(SocketUserMessage message) {
 			var hasMuikea = HasMuikeaPrefix(message);

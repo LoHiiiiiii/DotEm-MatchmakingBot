@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using DotemDiscord.Handlers;
 using Discord.Interactions;
+using DotemChatMatchmaker;
 
 namespace DotemDiscord {
     public class Program {
@@ -28,6 +29,8 @@ namespace DotemDiscord {
             };
 
             var collection = new ServiceCollection()
+				.AddSingleton<ChatGameNameHandler>()
+				.AddSingleton<ChatMatchmaker>()
                 .AddSingleton(clientConfig)
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton(new CommandServiceConfig())

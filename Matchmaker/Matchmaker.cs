@@ -1,19 +1,17 @@
-﻿using Matchmaker.Model;
+﻿using DotemModel;
 
-namespace Matchmaker {
+namespace DotemMatchmaker {
 	public class Matchmaker {
-		private int ExpireClearIntervalMilliseconds { get; }
+		private readonly int _expireClearIntervalMilliseconds;
 
 		public Matchmaker(int expireClearIntervalMinutes) {
-			ExpireClearIntervalMilliseconds = expireClearIntervalMinutes * 1000 * 60;
+			_expireClearIntervalMilliseconds = expireClearIntervalMinutes * 1000 * 60;
 			ExpireInterval();
 		}
 
-		public delegate void SearchEventHandler(object sender, SearchDetails details);
+		public delegate void SearchChangedEvent(object sender, SearchDetails[]? added, SearchDetails[]? updated, SearchDetails[]? stopped);
 
-		public event SearchEventHandler? SearchStopped;
-		public event SearchEventHandler? SearchUpdated;
-		public event SearchEventHandler? SearchAdded;
+		public event SearchChangedEvent? SearchChanged;
 
 		private Dictionary<Guid, SearchDetails> activeSearches = new ();
 		private SemaphoreSlim searchSemaphore = new SemaphoreSlim(1, 1);
@@ -23,7 +21,10 @@ namespace Matchmaker {
 			if (!searchAttempts.Any()) return new SearchResult.NoSearch();
 
 			await searchSemaphore.WaitAsync();
-			ClearExpiredSearches();
+			var stoppedSearches = ClearExpiredSearches()?.ToList() ?? new List<SearchDetails>();
+
+			var addedSearches = new List<SearchDetails>();
+			var updatedSearches = new List<SearchDetails>();
 
 			try {
 				var uniqueSearches = searchAttempts.ToHashSet();
@@ -79,7 +80,7 @@ namespace Matchmaker {
 								for(int i = 0; i < key.playerCount - 1; ++i) {
 									var search = playableCompleteMatches[key][i];
 									players.Add(search.UserId);
-									SearchStopped?.Invoke(this, search);
+									stoppedSearches.Add(search);
 									activeSearches.Remove(search.SearchId);
 								}
 								
@@ -109,7 +110,7 @@ namespace Matchmaker {
 													 .FirstOrDefault();
 					if (existingSearch != null) {
 						existingSearch.ExpireTime = expireTime;
-						SearchUpdated?.Invoke(this, existingSearch);
+						updatedSearches.Add(existingSearch);
 						searchesToReturn.Add(existingSearch);
 					} else {
 						var newSearch = new SearchDetails(
@@ -121,31 +122,46 @@ namespace Matchmaker {
 							expireTime: expireTime);
 						searchesToReturn.Add(newSearch);
 						activeSearches.Add(newSearch.SearchId, newSearch);
-						SearchAdded?.Invoke(this, newSearch);
+						addedSearches.Add(newSearch);
 					}
 				}
 
 				return new SearchResult.Searching(searchesToReturn.ToArray());
-			} finally { searchSemaphore.Release(); }
+			} finally { 
+				if (addedSearches.Any() || stoppedSearches.Any() || updatedSearches.Any()) {
+					SearchChanged?.Invoke(this, 
+						added: addedSearches.ToArray(), 
+						updated: updatedSearches.ToArray(), 
+						stopped: stoppedSearches.ToArray()
+					);
+				}
+				searchSemaphore.Release(); 
+			}
 		}
 
-		public async Task<SearchDetails[]> CancelSearches(params Guid[] searchIds) {
+		public async Task<SearchDetails[]> CancelSearchesAsync(params Guid[] searchIds) {
 			await searchSemaphore.WaitAsync();
+			var canceledSearches = new List<SearchDetails>();
 			try {
-				var canceledSearches = new List<SearchDetails>();
 				foreach (var id in searchIds) {
 					if (!activeSearches.ContainsKey(id)) continue;
-					SearchStopped?.Invoke(this, activeSearches[id]);
 					canceledSearches.Add(activeSearches[id]);
 					activeSearches.Remove(id);
 				}
 
 				return canceledSearches.ToArray();
-			} finally { searchSemaphore.Release(); }
+			} finally {
+				if (canceledSearches.Any()) {
+					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: null, updated: null);
+				}
+				searchSemaphore.Release(); 
+			}
 		}
 		
-		public async Task<SearchDetails[]> CancelSearches(string serverId, string userId, params (string gameId, int playerCount, string? description)[] searches) {
+		public async Task<SearchDetails[]> CancelSearchesAsync(string serverId, string userId, params (string gameId, int playerCount, string? description)[] searches) {
 			await searchSemaphore.WaitAsync();
+
+			var canceledSearches = new List<SearchDetails>();
 
 			try {
 				var userSearches = activeSearches.Values.Where(detail => detail.UserId == userId && detail.ServerId == serverId).ToArray();
@@ -158,8 +174,6 @@ namespace Matchmaker {
 					}
 					gameSearches[userSearch.GameId].Add(userSearch);
 				}
-
-				var canceledSearches = new List<SearchDetails>();
 
 				foreach (var search in searches) {
 					if (!gameSearches.ContainsKey(search.gameId)) continue;
@@ -178,28 +192,38 @@ namespace Matchmaker {
 					}
 
 					canceledSearches.Add(canceledSearch);
-					SearchStopped?.Invoke(this, canceledSearch);
 					activeSearches.Remove(canceledSearch.SearchId);
 				}
 
 				return canceledSearches.ToArray();
-			} finally { searchSemaphore.Release(); }
+			} finally {
+				if (canceledSearches.Any()) {
+					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: null, updated: null);
+				}
+				searchSemaphore.Release(); 
+			}
 		}
 
-		public async Task<SearchDetails[]> CancelAllPlayerSearches(string serverId, string userId) {
+		public async Task<SearchDetails[]> CancelAllPlayerSearchesAsync(string serverId, string userId) {
 			await searchSemaphore.WaitAsync();
+			var canceledSearches = new List<SearchDetails>();
 			try {
 				var searches  = activeSearches.Values.Where(detail => detail.UserId == userId && detail.ServerId == serverId).ToArray();
 
 				foreach (var search in searches) {
-					SearchStopped?.Invoke(this, search);
+					canceledSearches.Add(search);
 					activeSearches.Remove(search.SearchId);
 				}
 				return searches;
-			} finally { searchSemaphore.Release(); }
+			} finally {
+				if (canceledSearches.Any()) {
+					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: null, updated: null);
+				}
+				searchSemaphore.Release(); 
+			}
 		}
 		
-		public async Task<SearchResult> TryAcceptMatch(string userId, Guid searchId) {
+		public async Task<SearchResult> TryAcceptMatchAsync(string userId, Guid searchId) {
 			var handle = searchSemaphore.AvailableWaitHandle;
 
 			if (!activeSearches.ContainsKey(searchId)) {
@@ -213,12 +237,12 @@ namespace Matchmaker {
 				searchSemaphore.Release();
 				return await SearchAsync(search.ServerId, search.UserId, search.ExpireTime, false, (search.GameId, search.PlayerCount, search.Description));
 			}
-			
 			try {
 				if (activeSearches.ContainsKey(search.SearchId)) {
 					var players = new string[] { userId, search.UserId };
-					SearchStopped?.Invoke(this, search);
 					activeSearches.Remove(search.SearchId);
+					
+					SearchChanged?.Invoke(this, stopped: new SearchDetails[] {search}, added: null, updated: null);
 					return new SearchResult.Found(players, search.GameId, search.Description);
 				}
 				return new SearchResult.NoSearch();
@@ -226,20 +250,21 @@ namespace Matchmaker {
 		}
 
 		// Be sure to await semaphore before entering
-		private IEnumerable<SearchDetails>? ClearExpiredSearches() {
+		private SearchDetails[]? ClearExpiredSearches() {
 			var now = DateTime.Now;
 			var expiredSearches = activeSearches.Values.Where(search => search.ExpireTime < now);
-			if (SearchStopped != null) foreach (var expiredSearch in expiredSearches) SearchStopped.Invoke(this, expiredSearch);
+			if (expiredSearches == null || !expiredSearches.Any()) return null;
 			activeSearches = activeSearches.Where(pair => pair.Value.ExpireTime >= now).ToDictionary(pair => pair.Key, pair => pair.Value);
-			return expiredSearches;
+			return expiredSearches.ToArray();
 		}
 
 		private async void ExpireInterval() {
 			while (true) {
-				await Task.Delay(ExpireClearIntervalMilliseconds);
+				await Task.Delay(_expireClearIntervalMilliseconds);
 				await searchSemaphore.WaitAsync();
 				try {
-					ClearExpiredSearches();
+					var expiredSearches = ClearExpiredSearches();
+					SearchChanged?.Invoke(this, stopped: expiredSearches, added: null, updated: null);
 				} finally { searchSemaphore.Release(); }
 			}
 		}
