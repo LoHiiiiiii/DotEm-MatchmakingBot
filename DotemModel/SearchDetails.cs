@@ -1,5 +1,5 @@
 ﻿namespace DotemModel {
-	public class SearchDetails {
+	public record SearchDetails {
 
 		public Guid SearchId { get; } = Guid.NewGuid();
 		public string GameId { get; }

@@ -1,4 +1,5 @@
 ﻿using DotemModel;
+using SearchParameters = (string gameId, int playerCount, string? description);
 
 namespace DotemMatchmaker {
 	public class Matchmaker {
@@ -9,7 +10,7 @@ namespace DotemMatchmaker {
 			ExpireInterval();
 		}
 
-		public delegate void SearchChangedEvent(object sender, SearchDetails[]? added, SearchDetails[]? updated, SearchDetails[]? stopped);
+		public delegate void SearchChangedEvent(object sender, SearchDetails[] added, SearchDetails[] updated, SearchDetails[] stopped);
 
 		public event SearchChangedEvent? SearchChanged;
 
@@ -17,7 +18,7 @@ namespace DotemMatchmaker {
 		private SemaphoreSlim searchSemaphore = new SemaphoreSlim(1, 1);
 
 		public async Task<SearchResult> SearchAsync(string serverId, string userId, DateTimeOffset expireTime, 
-			bool allowSuggestions = true, params (string gameId, int playerCount, string? description)[] searchAttempts) {
+			bool allowSuggestions = true, params SearchParameters[] searchAttempts) {
 			if (!searchAttempts.Any()) return new SearchResult.NoSearch();
 
 			await searchSemaphore.WaitAsync();
@@ -46,9 +47,9 @@ namespace DotemMatchmaker {
 						structuredGameSearches[search.GameId][secondaryKey].Add(search);
 					}
 
-					var playableCompleteMatches = new Dictionary<(string gameId, int playerCount, string? description), List<SearchDetails>>();
-					var playablePartialMatches = new List<(string gameId, int playerCount, string? description)>();
-					var searchablePartialMatches = new List<(string gameId, int playerCount, string? description)>();
+					var playableCompleteMatches = new Dictionary<SearchParameters, List<SearchDetails>>();
+					var playablePartialMatches = new List<SearchParameters>();
+					var searchablePartialMatches = new List<SearchParameters>();
 
 					// Sort matches
 					foreach (var attempt in uniqueSearches) {
@@ -104,14 +105,14 @@ namespace DotemMatchmaker {
 				var searchesToReturn = new List<SearchDetails>();
 				var userSearches = activeSearches.Values.Where(search => search.UserId == userId && search.ServerId == serverId);
 				foreach (var attempt in uniqueSearches) {
-					var existingSearch = userSearches.Where(search =>  search.GameId == attempt.gameId 
+					SearchDetails? existingSearch = userSearches.Where(search =>  search.GameId == attempt.gameId 
 															&& search.PlayerCount == attempt.playerCount 
 															&& search.Description == attempt.description)
 													 .FirstOrDefault();
-					if (existingSearch != null) {
-						existingSearch.ExpireTime = expireTime;
-						updatedSearches.Add(existingSearch);
-						searchesToReturn.Add(existingSearch);
+					if (existingSearch is SearchDetails existing) {
+						existing.ExpireTime = expireTime;
+						updatedSearches.Add(existing);
+						searchesToReturn.Add(existing);
 					} else {
 						var newSearch = new SearchDetails(
 							serverId: serverId,
@@ -152,13 +153,13 @@ namespace DotemMatchmaker {
 				return canceledSearches.ToArray();
 			} finally {
 				if (canceledSearches.Any()) {
-					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: null, updated: null);
+					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: [], updated: []);
 				}
 				searchSemaphore.Release(); 
 			}
 		}
 		
-		public async Task<SearchDetails[]> CancelSearchesAsync(string serverId, string userId, params (string gameId, int playerCount, string? description)[] searches) {
+		public async Task<SearchDetails[]> CancelSearchesAsync(string serverId, string userId, params SearchParameters[] searches) {
 			await searchSemaphore.WaitAsync();
 
 			var canceledSearches = new List<SearchDetails>();
@@ -182,10 +183,10 @@ namespace DotemMatchmaker {
 					if (gameSearches[search.gameId].Count == 1) {
 						canceledSearch = gameSearches[search.gameId][0];
 					} else {
-						var exactMatch = gameSearches[search.gameId].Where(details => details.PlayerCount == search.playerCount && details.Description == search.description)
+						SearchDetails? exactMatch = gameSearches[search.gameId].Where(details => details.PlayerCount == search.playerCount && details.Description == search.description)
 																	.FirstOrDefault();
-						if (exactMatch != null) {
-							canceledSearch = exactMatch;
+						if (exactMatch is SearchDetails existing) {
+							canceledSearch = existing;
 						} else {
 							continue;
 						}
@@ -198,7 +199,7 @@ namespace DotemMatchmaker {
 				return canceledSearches.ToArray();
 			} finally {
 				if (canceledSearches.Any()) {
-					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: null, updated: null);
+					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: [], updated: []);
 				}
 				searchSemaphore.Release(); 
 			}
@@ -217,7 +218,7 @@ namespace DotemMatchmaker {
 				return searches;
 			} finally {
 				if (canceledSearches.Any()) {
-					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: null, updated: null);
+					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: [], updated: []);
 				}
 				searchSemaphore.Release(); 
 			}
@@ -264,7 +265,7 @@ namespace DotemMatchmaker {
 				await searchSemaphore.WaitAsync();
 				try {
 					var expiredSearches = ClearExpiredSearches();
-					SearchChanged?.Invoke(this, stopped: expiredSearches, added: null, updated: null);
+					SearchChanged?.Invoke(this, stopped: expiredSearches, added: [], updated: []);
 				} finally { searchSemaphore.Release(); }
 			}
 		}

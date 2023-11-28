@@ -40,6 +40,10 @@ namespace DotemChatMatchmaker {
 			return await _matchmaker.SearchAsync(serverId, userId, expireTime, allowSuggestions, searchAttempts);
 		}
 
+		public async Task<SearchDetails[]> CancelSearchesAsync(params Guid[] searchIds) => await _matchmaker.CancelSearchesAsync(searchIds);
+
+		public async Task<SearchResult> TryAcceptMatchAsync(string userId, Guid searchId) => await _matchmaker.TryAcceptMatchAsync(userId, searchId);
+
 		private (string gameId, int playerCount, string? description)[]? GetChannelDefaultSearchAttempts(string channelId) => null;
 
 	}

@@ -9,12 +9,13 @@ namespace DotemDiscord.SlashCommands {
 
 		[SlashCommand("test", "Does something")]
 		public async Task TestSlashCommand() {
-			var id = new Guid();
-			var components = new ComponentBuilder().WithButton("Test", id.ToString()).Build();
-			await DeferAsync();
+			await RespondAsync("Test", ephemeral: true);
+			await Task.Delay(3000);
 			await ModifyOriginalResponseAsync(x => {
-				x.Content = "Test";
+				x.Content = "s";
+				x.Flags = MessageFlags.None;
 			});
+			await DeleteOriginalResponseAsync();
 		}
 	}
 }
