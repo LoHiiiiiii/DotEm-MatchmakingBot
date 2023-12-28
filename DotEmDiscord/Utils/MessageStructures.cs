@@ -73,12 +73,16 @@ namespace DotemDiscord.Utils {
 			return ("No longer searching.", null);
 		}
 
+		public static (string? content, MessageComponent? components) GetStoppedStructure(string gameName) {
+			return ($"No longer searching for {gameName}.", null);
+		}
+
 		public static (string? content, MessageComponent? components) GetNoSearchStructure() {
 			return ("No search.", null);
 		}
 
 		public static (string? content, MessageComponent? components) GetFailedJoinStructure() {
-			return ("Couldn't join.", null);
+			return ("Failed to join.", null);
 		}
 
 	}

@@ -43,7 +43,14 @@ namespace DotemChatMatchmaker {
 			return await _matchmaker.SearchSessionAsync(serverId, userId, expireTime, allowSuggestions, searchAttempts);
 		}
 
-		public async Task<SessionDetails[]> LeaveSessionsAsync(string userId, params Guid[] searchIds) => await _matchmaker.LeaveSessionsAsync(userId, searchIds);
+		public async Task<SessionDetails[]> LeaveSessionsAsync(string userId, params Guid[] searchIds)
+			=> await _matchmaker.LeaveSessionsAsync(userId, searchIds);
+		public async Task<SessionDetails[]> LeaveSessionsAsync(string serverId, string userId, params string[] gameIds) 
+			=> await _matchmaker.LeaveSessionsAsync(serverId, userId, gameIds);
+		public async Task<SessionDetails[]> LeaveAllPlayerSessionsAsync(string serverId, string userId)
+			=> await _matchmaker.LeaveAllPlayerSessionsAsync(serverId, userId);
+
+
 
 		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid searchId, int? durationMinutes = null) {
 			var expireTime = DateTime.Now.AddMinutes(durationMinutes ?? _defaultDurationMinutes);
