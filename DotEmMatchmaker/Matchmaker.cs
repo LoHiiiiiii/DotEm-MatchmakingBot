@@ -7,272 +7,289 @@ namespace DotemMatchmaker {
 
 		public Matchmaker(int expireClearIntervalMinutes) {
 			_expireClearIntervalMilliseconds = expireClearIntervalMinutes * 1000 * 60;
-			ExpireInterval();
+			ExpireIntervalLoop();
 		}
 
-		public delegate void SearchChangedEvent(object sender, SearchDetails[] added, SearchDetails[] updated, SearchDetails[] stopped);
+		public delegate void SessionChangedEvent(SessionDetails[] added, SessionDetails[] updated, SessionDetails[] stopped);
 
-		public event SearchChangedEvent? SearchChanged;
+		public event SessionChangedEvent? SessionChanged;
 
-		private Dictionary<Guid, SearchDetails> activeSearches = new ();
-		private SemaphoreSlim searchSemaphore = new SemaphoreSlim(1, 1);
+		private Dictionary<Guid, SessionDetails> joinableSessions = new();
 
-		public async Task<SearchResult> SearchAsync(string serverId, string userId, DateTimeOffset expireTime, 
-			bool allowSuggestions = true, params SearchParameters[] searchAttempts) {
-			if (!searchAttempts.Any()) return new SearchResult.NoSearch();
+		private SemaphoreSlim sessionSemaphore = new SemaphoreSlim(1, 1);
 
-			await searchSemaphore.WaitAsync();
-			var stoppedSearches = ClearExpiredSearches()?.ToList() ?? new List<SearchDetails>();
+		public async Task<SessionResult> SearchSessionAsync(string serverId, string userId, DateTimeOffset expireTime,
+			bool allowSuggestions = true, params SearchParameters[] searchAttempts
+		) {
+			if (!searchAttempts.Any()) return new SessionResult.NoAction();
 
-			var addedSearches = new List<SearchDetails>();
-			var updatedSearches = new List<SearchDetails>();
-
+			await sessionSemaphore.WaitAsync();
 			try {
-				var uniqueSearches = searchAttempts.ToHashSet();
-				var gameIds = searchAttempts.Select(attempt => attempt.gameId).ToHashSet();
+				(var stoppedSessions, var updatedSessions) = ClearExpiredUserJoins();
 
-				var matchingGameSearches = activeSearches.Values.Where(search => search.ServerId == serverId && search.UserId != userId && gameIds.Contains(search.GameId));
+				var addedSessions = new List<SessionDetails>();
 
-				if (matchingGameSearches.Any()) {
-					var structuredGameSearches = new Dictionary<string, Dictionary<(int playerCount, string? description), List<SearchDetails>>>();
-					foreach (var search in matchingGameSearches) {
-						var secondaryKey = (search.PlayerCount, search.Description);
-						if (!structuredGameSearches.ContainsKey(search.GameId)) {
-							var dictionary = new Dictionary<(int, string?), List<SearchDetails>>();
-							structuredGameSearches.Add(search.GameId, dictionary);
-						}
-						if (!structuredGameSearches[search.GameId].ContainsKey(secondaryKey)) {
-							structuredGameSearches[search.GameId].Add(secondaryKey, new List<SearchDetails>());
-						}
-						structuredGameSearches[search.GameId][secondaryKey].Add(search);
-					}
-
-					var playableCompleteMatches = new Dictionary<SearchParameters, List<SearchDetails>>();
-					var playablePartialMatches = new List<SearchParameters>();
-					var searchablePartialMatches = new List<SearchParameters>();
-
-					// Sort matches
-					foreach (var attempt in uniqueSearches) {
-						if (structuredGameSearches.ContainsKey(attempt.gameId)) {
-							foreach (var secondaryKey in structuredGameSearches[attempt.gameId].Keys) {
-								var playable = attempt.playerCount == structuredGameSearches[attempt.gameId][secondaryKey].Count - 1;
-								if (secondaryKey == (attempt.playerCount, attempt.description)) {
-									if (playable) {
-										playableCompleteMatches.Add(attempt, structuredGameSearches[attempt.gameId][secondaryKey]);
-									}
-								} else {
-									if (playable) {
-										playablePartialMatches.Add((attempt.gameId, secondaryKey.playerCount, secondaryKey.description));
-									} else {
-										searchablePartialMatches.Add((attempt.gameId, secondaryKey.playerCount, secondaryKey.description));
-									}
-								}
-							}
-						}
-					}
-
-					if (playableCompleteMatches.Count > 0) {
-						// One exact match
-						if (playableCompleteMatches.Count == 1 && (playablePartialMatches.Count == 0 || !allowSuggestions)) {
-							var key = playableCompleteMatches.First().Key;
-							if (key.description == null || !allowSuggestions) { // Immediately match only if no descriptions
-								var players = new List<string>() { userId };
-
-								for(int i = 0; i < key.playerCount - 1; ++i) {
-									var search = playableCompleteMatches[key][i];
-									players.Add(search.UserId);
-									stoppedSearches.Add(search);
-									activeSearches.Remove(search.SearchId);
-								}
-								
-								return new SearchResult.Found(players.ToArray(), key.gameId, key.description);
-							}
-						}
-
-						// Give playable suggestions
-						var totalPlayables = playableCompleteMatches.Keys
-												.Concat(playablePartialMatches).ToArray();
-						return new SearchResult.Suggestions(totalPlayables);
-					} else if ((playablePartialMatches.Count > 0 || searchablePartialMatches.Count > 0) && allowSuggestions) {
-						var playableSuggestions = playablePartialMatches.ToArray();
-						var searchableSuggestions = searchablePartialMatches.ToArray();
-						return new SearchResult.Suggestions(playableSuggestions, searchableSuggestions);
-					}
-				}
-
-				// No suggestions or matches
-
-				var searchesToReturn = new List<SearchDetails>();
-				var userSearches = activeSearches.Values.Where(search => search.UserId == userId && search.ServerId == serverId);
-				foreach (var attempt in uniqueSearches) {
-					SearchDetails? existingSearch = userSearches.Where(search =>  search.GameId == attempt.gameId 
-															&& search.PlayerCount == attempt.playerCount 
-															&& search.Description == attempt.description)
-													 .FirstOrDefault();
-					if (existingSearch is SearchDetails existing) {
-						existing.ExpireTime = expireTime;
-						updatedSearches.Add(existing);
-						searchesToReturn.Add(existing);
-					} else {
-						var newSearch = new SearchDetails(
-							serverId: serverId,
-							userId: userId,
-							gameId: attempt.gameId,
-							playerCount: attempt.playerCount,
-							description: attempt.description,
-							expireTime: expireTime);
-						searchesToReturn.Add(newSearch);
-						activeSearches.Add(newSearch.SearchId, newSearch);
-						addedSearches.Add(newSearch);
-					}
-				}
-
-				return new SearchResult.Searching(searchesToReturn.ToArray());
-			} finally { 
-				if (addedSearches.Any() || stoppedSearches.Any() || updatedSearches.Any()) {
-					SearchChanged?.Invoke(this, 
-						added: addedSearches.ToArray(), 
-						updated: updatedSearches.ToArray(), 
-						stopped: stoppedSearches.ToArray()
+				try {
+					var uniqueSearches = searchAttempts.ToHashSet();
+					var uniqueGames = searchAttempts.Select(attempt => attempt.gameId).ToHashSet();
+					var matchingGames = joinableSessions.Values.Where(
+						match => match.ServerId == serverId
+						&& !match.UserExpires.ContainsKey(userId)
+						&& uniqueGames.Contains(match.GameId)
 					);
-				}
-				searchSemaphore.Release(); 
-			}
-		}
 
-		public async Task<SearchDetails[]> CancelSearchesAsync(params Guid[] searchIds) {
-			await searchSemaphore.WaitAsync();
-			var canceledSearches = new List<SearchDetails>();
-			try {
-				foreach (var id in searchIds) {
-					if (!activeSearches.ContainsKey(id)) continue;
-					canceledSearches.Add(activeSearches[id]);
-					activeSearches.Remove(id);
-				}
+					if (matchingGames.Any()) {
+						var playableExactMatches = matchingGames.Where(
+							match => match.UserExpires.Count == match.MaxPlayerCount - 1
+								&& uniqueSearches.Contains((match.GameId, match.MaxPlayerCount, match.Description))
+							);
 
-				return canceledSearches.ToArray();
-			} finally {
-				if (canceledSearches.Any()) {
-					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: [], updated: []);
-				}
-				searchSemaphore.Release(); 
-			}
-		}
-		
-		public async Task<SearchDetails[]> CancelSearchesAsync(string serverId, string userId, params SearchParameters[] searches) {
-			await searchSemaphore.WaitAsync();
+						var playablePartialMatches = matchingGames.Where(
+							match => match.UserExpires.Count == match.MaxPlayerCount - 1
+								&& !uniqueSearches.Contains((match.GameId, match.MaxPlayerCount, match.Description))
+							);
 
-			var canceledSearches = new List<SearchDetails>();
+						var partialWaitables = matchingGames.Where(
+							match => match.UserExpires.Count == match.MaxPlayerCount - 1
+								&& !uniqueSearches.Contains((match.GameId, match.MaxPlayerCount, match.Description))
+							);
 
-			try {
-				var userSearches = activeSearches.Values.Where(detail => detail.UserId == userId && detail.ServerId == serverId).ToArray();
+						if (playableExactMatches.Any()) {
+							var exact = playableExactMatches.First();
+							if (playableExactMatches.All(match =>
+									match.GameId == exact.GameId
+									&& match.MaxPlayerCount == exact.MaxPlayerCount
+									&& match.Description == exact.Description
+								)
+								&& (!playablePartialMatches.Any() && exact.Description == null)
+							) {
+								// Immediately match only if no descriptions and one type of exact match
+								exact.UserExpires.Add(userId, expireTime);
 
-				var gameSearches = new Dictionary<string, List<SearchDetails>>();
+								stoppedSessions.Add(exact);
+								joinableSessions.Remove(exact.SessionId);
+								return new SessionResult.Matched(exact.UserExpires.Keys.ToArray(), exact.GameId, exact.Description);
+							}
 
-				foreach (var userSearch in userSearches) {
-					if (!gameSearches.ContainsKey(userSearch.GameId)) {
-						gameSearches.Add(userSearch.GameId, new List<SearchDetails>());
-					}
-					gameSearches[userSearch.GameId].Add(userSearch);
-				}
+							var hasExactDescriptionless = playableExactMatches.Any(match => match.Description == null);
 
-				foreach (var search in searches) {
-					if (!gameSearches.ContainsKey(search.gameId)) continue;
-
-					SearchDetails canceledSearch;
-					if (gameSearches[search.gameId].Count == 1) {
-						canceledSearch = gameSearches[search.gameId][0];
-					} else {
-						SearchDetails? exactMatch = gameSearches[search.gameId].Where(details => details.PlayerCount == search.playerCount && details.Description == search.description)
-																	.FirstOrDefault();
-						if (exactMatch is SearchDetails existing) {
-							canceledSearch = existing;
-						} else {
-							continue;
+							if (allowSuggestions || hasExactDescriptionless) {
+								SessionDetails[] totalPlayables = playableExactMatches
+														.Concat(playablePartialMatches).ToArray();
+								return new SessionResult.Found(totalPlayables, !hasExactDescriptionless);
+							}
+						} else if (allowSuggestions && (playablePartialMatches.Any() || partialWaitables.Any())) {
+							return new SessionResult.Suggestions(
+								playableSuggestions: playablePartialMatches.ToArray() ?? [],
+								waitableSuggestions: partialWaitables.ToArray() ?? []
+							);
 						}
 					}
 
-					canceledSearches.Add(canceledSearch);
-					activeSearches.Remove(canceledSearch.SearchId);
-				}
+					// No suggestions or exact descriptionless matches
 
-				return canceledSearches.ToArray();
-			} finally {
-				if (canceledSearches.Any()) {
-					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: [], updated: []);
+					var waitingSessions = new List<SessionDetails>();
+					var joinedSessions = joinableSessions.Values.Where(search => search.UserExpires.ContainsKey(userId) && search.ServerId == serverId);
+					foreach (var attempt in uniqueSearches) {
+						var existingSessions = joinedSessions.Where(match => match.GameId == attempt.gameId
+																&& match.MaxPlayerCount == attempt.playerCount
+																&& match.Description == attempt.description);
+						if (existingSessions.Any()) {
+							foreach (var session in existingSessions) {
+								session.UserExpires[userId] = expireTime;
+								updatedSessions.Add(session);
+								waitingSessions.Add(session);
+							}
+						} else {
+							var newSearch = new SessionDetails(
+								serverId: serverId,
+								userId: userId,
+								gameId: attempt.gameId,
+								maxPlayerCount: attempt.playerCount,
+								description: attempt.description);
+							newSearch.UserExpires.Add(userId, expireTime);
+							waitingSessions.Add(newSearch);
+							joinableSessions.Add(newSearch.SessionId, newSearch);
+							addedSessions.Add(newSearch);
+						}
+					}
+
+					return new SessionResult.Waiting(waitingSessions.ToArray());
+				} finally {
+					if (addedSessions.Any() || stoppedSessions.Any() || updatedSessions.Any()) {
+						SessionChanged?.Invoke(
+							added: addedSessions.ToArray(),
+							updated: updatedSessions.ToArray(),
+							stopped: stoppedSessions.ToArray()
+						);
+					}
 				}
-				searchSemaphore.Release(); 
-			}
+			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<SearchDetails[]> CancelAllPlayerSearchesAsync(string serverId, string userId) {
-			await searchSemaphore.WaitAsync();
-			var canceledSearches = new List<SearchDetails>();
+		public async Task<SessionDetails[]> LeaveSessionsAsync(string userId, params Guid[] sessionIds) {
+			await sessionSemaphore.WaitAsync();
 			try {
-				var searches  = activeSearches.Values.Where(detail => detail.UserId == userId && detail.ServerId == serverId).ToArray();
+				(var stoppedMatches, var updatedMatches) = ClearExpiredUserJoins();
+				try {
+					foreach (var id in sessionIds) {
+						if (!joinableSessions.TryGetValue(id, out var match)) continue;
+						if (!match.UserExpires.Remove(userId, out _)) continue;
+						if (match.UserExpires.Count == 0) {
+							stoppedMatches.Add(match);
+							joinableSessions.Remove(id);
+						} else {
+							updatedMatches.Add(match);
+						}
+					}
 
-				foreach (var search in searches) {
-					canceledSearches.Add(search);
-					activeSearches.Remove(search.SearchId);
+					return stoppedMatches.Concat(updatedMatches).ToArray();
+				} finally {
+					if (stoppedMatches.Any() || updatedMatches.Any()) {
+						SessionChanged?.Invoke(
+							added: [],
+							updated: updatedMatches.ToArray(),
+							stopped: stoppedMatches.ToArray()
+						);
+					}
 				}
-				return searches;
-			} finally {
-				if (canceledSearches.Any()) {
-					SearchChanged?.Invoke(this, stopped: canceledSearches.ToArray(), added: [], updated: []);
-				}
-				searchSemaphore.Release(); 
-			}
+			} finally { sessionSemaphore.Release(); }
 		}
-		
-		public async Task<SearchResult> TryAcceptMatchAsync(string userId, Guid searchId) {
-			var handle = searchSemaphore.AvailableWaitHandle;
 
-			if (!activeSearches.ContainsKey(searchId)) {
-				searchSemaphore.Release();
-				return new SearchResult.NoSearch();
-			}
-
-			var search = activeSearches[searchId];
-			
-			if (search.PlayerCount > 2) {
-				searchSemaphore.Release();
-				return await SearchAsync(search.ServerId, search.UserId, search.ExpireTime, false, (search.GameId, search.PlayerCount, search.Description));
-			}
+		public async Task<SessionDetails[]> LeaveSessionsAsync(string serverId, string userId, params string[] gameIds) {
+			await sessionSemaphore.WaitAsync();
 			try {
-				if (activeSearches.ContainsKey(search.SearchId)) {
-					var players = new string[] { userId, search.UserId };
-					activeSearches.Remove(search.SearchId);
-					
-					SearchChanged?.Invoke(this, stopped: new SearchDetails[] {search}, added: null, updated: null);
-					return new SearchResult.Found(players, search.GameId, search.Description);
+				(var stoppedSessions, var updatedSessions) = ClearExpiredUserJoins();
+
+				try {
+					var joinedMatches = joinableSessions.Values.Where(match => match.UserExpires.ContainsKey(userId)
+							&& match.ServerId == serverId
+							&& gameIds.Contains(match.GameId)
+						).ToArray();
+
+					foreach (var match in joinedMatches) {
+						if (!match.UserExpires.Remove(userId, out _)) continue;
+						if (match.UserExpires.Count == 0) {
+							stoppedSessions.Add(match);
+							joinableSessions.Remove(match.SessionId);
+						} else {
+							updatedSessions.Add(match);
+						}
+					}
+
+					return stoppedSessions.Concat(updatedSessions).ToArray();
+				} finally {
+					if (stoppedSessions.Any() || updatedSessions.Any()) {
+						SessionChanged?.Invoke(
+							added: [],
+							updated: updatedSessions.ToArray(),
+							stopped: stoppedSessions.ToArray()
+						);
+					}
 				}
-				return new SearchResult.NoSearch();
-			} finally { searchSemaphore.Release(); }
+			} finally { sessionSemaphore.Release(); }
+		}
+
+		public async Task<SessionDetails[]> LeaveAllPlayerSessionsAsync(string serverId, string userId) {
+			await sessionSemaphore.WaitAsync();
+			try {
+				(var stoppedSessions, var updatedSessions) = ClearExpiredUserJoins();
+
+				try {
+					var matches = joinableSessions.Values.Where(match => match.UserExpires.ContainsKey(userId) && match.ServerId == serverId).ToArray();
+
+					foreach (var match in matches) {
+						match.UserExpires.Remove(userId);
+						if (match.UserExpires.Count == 0) {
+							stoppedSessions.Add(match);
+							joinableSessions.Remove(match.SessionId);
+						} else {
+							updatedSessions.Add(match);
+						}
+					}
+					return matches;
+				} finally {
+					if (stoppedSessions.Any()) {
+						SessionChanged?.Invoke(
+							added: [], updated:
+							updatedSessions.ToArray(),
+							stopped: stoppedSessions.ToArray()
+						);
+					}
+				}
+			} finally { sessionSemaphore.Release(); }
+		}
+
+		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid matchId, DateTimeOffset expireTime) {
+			await sessionSemaphore.WaitAsync();
+			try {
+				(var stoppedMatches, var updatedMatches) = ClearExpiredUserJoins();
+				try {
+
+					if (!joinableSessions.TryGetValue(matchId, out var match)) { return new SessionResult.NoAction(); }
+					if (match.UserExpires.ContainsKey(userId)) { return new SessionResult.NoAction(); }
+
+					match.UserExpires.Add(userId, expireTime);
+
+					if (match.UserExpires.Count == match.MaxPlayerCount) {
+						stoppedMatches.Add(match);
+						joinableSessions.Remove(match.SessionId);
+						return new SessionResult.Matched(match.UserExpires.Keys.ToArray(), match.GameId, match.Description);
+					}
+
+					updatedMatches.Add(match);
+
+					return new SessionResult.Waiting([match]);
+
+				} finally {
+					if (stoppedMatches.Any() || updatedMatches.Any()) {
+						SessionChanged?.Invoke(
+							added: [],
+							updated: updatedMatches.ToArray(),
+							stopped: stoppedMatches.ToArray()
+						);
+					}
+				}
+			} finally { sessionSemaphore.Release(); }
 		}
 
 		// Be sure to await semaphore before entering
-		private SearchDetails[]? ClearExpiredSearches() {
+		private (List<SessionDetails> expired, List<SessionDetails> updated) ClearExpiredUserJoins() {
+			var expired = new List<SessionDetails>();
+			var updated = new List<SessionDetails>();
 			var now = DateTime.Now;
-			var expiredSearches = activeSearches.Values.Where(search => search.ExpireTime < now);
-			if (expiredSearches == null || !expiredSearches.Any()) return null;
-			activeSearches = activeSearches.Where(pair => pair.Value.ExpireTime >= now).ToDictionary(pair => pair.Key, pair => pair.Value);
-			return expiredSearches.ToArray();
+			foreach (var match in joinableSessions.Values.ToArray()) {
+				var prevCount = match.UserExpires.Count;
+				match.UserExpires = match.UserExpires.Where(pair => pair.Value >= now).ToDictionary(pair => pair.Key, pair => pair.Value);
+				if (match.UserExpires.Any()) {
+					if (match.UserExpires.Count < prevCount) { updated.Add(match); }
+				} else {
+					expired.Add(match);
+					joinableSessions.Remove(match.SessionId);
+				}
+			}
+			return (expired, updated);
 		}
 
-		private async void ExpireInterval() {
+		private async void ExpireIntervalLoop() {
 			while (true) {
 				await Task.Delay(_expireClearIntervalMilliseconds);
-				await searchSemaphore.WaitAsync();
+				await sessionSemaphore.WaitAsync();
 				try {
-					var expiredSearches = ClearExpiredSearches();
-					SearchChanged?.Invoke(this, stopped: expiredSearches, added: [], updated: []);
-				} finally { searchSemaphore.Release(); }
+					var (stoppedMatches, updatedSearches) = ClearExpiredUserJoins();
+					if (!stoppedMatches.Any() && !updatedSearches.Any()) { continue; }
+					SessionChanged?.Invoke(
+						added: [], 
+						updated: updatedSearches.ToArray(),
+						stopped: stoppedMatches.ToArray()
+					);
+				} finally { sessionSemaphore.Release(); }
 			}
 		}
 
-		public SearchDetails? GetSearch(Guid searchId) {
-			if (!activeSearches.TryGetValue(searchId, out var search)) return null;
-			return search;
+		public SessionDetails? GetMatch(Guid matchId) {
+			if (!joinableSessions.TryGetValue(matchId, out var match)) return null;
+			return match;
 		}
 	}
 }

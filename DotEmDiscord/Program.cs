@@ -5,8 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using DotemDiscord.Handlers;
 using Discord.Interactions;
 using DotemChatMatchmaker;
+using DotemDiscord.Messages;
 
-namespace DotemDiscord {
+namespace DotemDiscord
+{
     public class Program {
         private readonly IServiceProvider _serviceProvider;
 
@@ -20,7 +22,7 @@ namespace DotemDiscord {
         static IServiceProvider CreateProvider() {
             var clientConfig = new DiscordSocketConfig { 
                 GatewayIntents = GatewayIntents.MessageContent | GatewayIntents.AllUnprivileged,
-                UseInteractionSnowflakeDate = true,
+                UseInteractionSnowflakeDate = false,
 			};
 
             var interactionConfig = new InteractionServiceConfig() {
@@ -35,7 +37,6 @@ namespace DotemDiscord {
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton(new CommandServiceConfig())
                 .AddSingleton<CommandService>()
-                .AddSingleton<SearchMessageHandler>()
 				.AddSingleton(interactionConfig)
                 .AddSingleton<InteractionService>()
 				.AddSingleton<TextCommandHandler>()
