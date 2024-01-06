@@ -1,18 +1,31 @@
-﻿using Discord.WebSocket;
+﻿using Discord;
+using Discord.WebSocket;
 
 namespace DotemDiscord.Utils {
-	public class ExceptionHandling {
+	public static class ExceptionHandling {
 
-		public async static Task ReportSlashCommandException(SocketInteraction interaction) {
+		private static string internalError = "Internal server error!";
+
+		public async static Task ReportInteractionException(SocketInteraction interaction) {
 			try {
-				string response = "Internal server error!";
 				if (!interaction.HasResponded) {
-					await interaction.RespondAsync(text: response, ephemeral: true);
+					await interaction.RespondAsync(text: internalError, ephemeral: true);
 					return;
 				}
-				await interaction.FollowupAsync(text: response, ephemeral: true);
+				await interaction.FollowupAsync(text: internalError, ephemeral: true);
 			}
 			catch(Exception e) {
+				Console.WriteLine(e);
+			}
+		}
+
+		public async static Task ReportTextCommandException(SocketUserMessage message) {
+			try {
+				await message.ReplyAsync(
+					text: internalError,
+					allowedMentions: new()
+				);
+			} catch (Exception e) {
 				Console.WriteLine(e);
 			}
 		}

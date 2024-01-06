@@ -39,49 +39,49 @@ namespace DotemMatchmaker {
 					);
 
 					if (matchingGames.Any()) {
-						var playableExactMatches = matchingGames.Where(
-							match => match.UserExpires.Count == match.MaxPlayerCount - 1
-								&& uniqueSearches.Contains((match.GameId, match.MaxPlayerCount, match.Description))
-							);
-
-						var playablePartialMatches = matchingGames.Where(
-							match => match.UserExpires.Count == match.MaxPlayerCount - 1
-								&& !uniqueSearches.Contains((match.GameId, match.MaxPlayerCount, match.Description))
-							);
-
-						var partialWaitables = matchingGames.Where(
-							match => match.UserExpires.Count == match.MaxPlayerCount - 1
-								&& !uniqueSearches.Contains((match.GameId, match.MaxPlayerCount, match.Description))
-							);
+						var playableExactMatches = matchingGames.Where(match => 
+							match.UserExpires.Count == match.MaxPlayerCount - 1
+							&& uniqueSearches.Contains((match.GameId, match.MaxPlayerCount, match.Description))
+						);
 
 						if (playableExactMatches.Any()) {
 							var exact = playableExactMatches.First();
+
+
+							var restOfPlayables = matchingGames.Where(match =>
+								match.UserExpires.Count == match.MaxPlayerCount - 1
+								&& !uniqueSearches.Contains((match.GameId, match.MaxPlayerCount, match.Description))
+							);
+
 							if (playableExactMatches.All(match =>
 									match.GameId == exact.GameId
 									&& match.MaxPlayerCount == exact.MaxPlayerCount
 									&& match.Description == exact.Description
 								)
-								&& (!playablePartialMatches.Any() && exact.Description == null)
+								&& (!restOfPlayables.Any() && exact.Description == null)
 							) {
 								// Immediately match only if no descriptions and one type of exact match
 								exact.UserExpires.Add(userId, expireTime);
 
 								stoppedSessions.Add(exact);
 								joinableSessions.Remove(exact.SessionId);
-								return new SessionResult.Matched(exact.UserExpires.Keys.ToArray(), exact.GameId, exact.Description);
+								return new SessionResult.Matched(exact.UserExpires.Keys.ToArray(), exact, exact.Description);
 							}
 
 							var hasExactDescriptionless = playableExactMatches.Any(match => match.Description == null);
 
 							if (allowSuggestions || hasExactDescriptionless) {
-								SessionDetails[] totalPlayables = playableExactMatches
-														.Concat(playablePartialMatches).ToArray();
-								return new SessionResult.Found(totalPlayables, !hasExactDescriptionless);
+								SessionDetails[] suggestions = playableExactMatches
+														.Concat(restOfPlayables).ToArray();
+								return new SessionResult.Suggestions(
+									suggestedSessions: suggestions, 
+									allowWait: !hasExactDescriptionless
+								);
 							}
-						} else if (allowSuggestions && (playablePartialMatches.Any() || partialWaitables.Any())) {
+						} else if (allowSuggestions) {
 							return new SessionResult.Suggestions(
-								playableSuggestions: playablePartialMatches.ToArray() ?? [],
-								waitableSuggestions: partialWaitables.ToArray() ?? []
+								suggestedSessions: matchingGames.ToArray(),
+								allowWait: true
 							);
 						}
 					}
@@ -234,7 +234,7 @@ namespace DotemMatchmaker {
 					if (match.UserExpires.Count == match.MaxPlayerCount) {
 						stoppedMatches.Add(match);
 						joinableSessions.Remove(match.SessionId);
-						return new SessionResult.Matched(match.UserExpires.Keys.ToArray(), match.GameId, match.Description);
+						return new SessionResult.Matched(match.UserExpires.Keys.ToArray(), match, match.Description);
 					}
 
 					updatedMatches.Add(match);

@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using DotemDiscord.Handlers;
 using Discord.Interactions;
 using DotemChatMatchmaker;
-using DotemDiscord.Messages;
 
 namespace DotemDiscord
 {
@@ -30,7 +29,12 @@ namespace DotemDiscord
                 ThrowOnError = true,
             };
 
-            var collection = new ServiceCollection()
+			var timeOutEnv = Environment.GetEnvironmentVariable("MESSAGE_TIMEOUT_MINUTES");
+			if (timeOutEnv == null || !int.TryParse(timeOutEnv, out var timeoutMinutes)) {
+                timeoutMinutes = 14; //Default
+			}
+
+			var collection = new ServiceCollection()
 				.AddSingleton<ChatGameNameHandler>()
 				.AddSingleton<ChatMatchmaker>()
                 .AddSingleton(clientConfig)
@@ -39,6 +43,7 @@ namespace DotemDiscord
                 .AddSingleton<CommandService>()
 				.AddSingleton(interactionConfig)
                 .AddSingleton<InteractionService>()
+                .AddSingleton(new ButtonMessageHandler(timeoutMinutes))
 				.AddSingleton<TextCommandHandler>()
                 .AddSingleton<SlashCommandHandler>()
                 .AddSingleton<JokeHandler>();
@@ -53,11 +58,10 @@ namespace DotemDiscord
             await textCommandHandler.InstallTextCommandsAsync();
 
 			var idVar = Environment.GetEnvironmentVariable("TEST_GUILDID");
-            if (idVar == null) {
+            if (idVar == null || !ulong.TryParse(idVar, out var guildId)) {
                 Console.WriteLine("Missing guild id!");
                 return;
             }
-            var guildId = ulong.Parse(idVar);
 
 			client.Ready += async () => {
                 var slashCommandHandler = _serviceProvider.GetRequiredService<SlashCommandHandler>();

@@ -6,17 +6,18 @@ using SearchParameters = (string gameId, int playerCount, string? description);
 namespace DotemChatMatchmaker {
 	public class ChatMatchmaker {
 
-		private readonly ChatGameNameHandler _gameNameHandler;
 		private readonly Matchmaker _matchmaker;
-		private readonly int _defaultPlayerCount;
-		private readonly int _defaultDurationMinutes;
+		
+		private int DefaultPlayerCount { get; }
+		public int DefaultDurationMinutes { get; }
+		public ChatGameNameHandler GameNameHandler { get; }
 
 		public event Matchmaker.SessionChangedEvent? SessionChanged;
 
 		public ChatMatchmaker(ChatGameNameHandler gameNameHandler, Matchmaker? matchmaker = null,  int defaultPlayerCount = 2, int defaultDurationMinutes = 30) {
-			_gameNameHandler = gameNameHandler;
-			_defaultPlayerCount = defaultPlayerCount;
-			_defaultDurationMinutes = defaultDurationMinutes;
+			GameNameHandler = gameNameHandler;
+			DefaultPlayerCount = defaultPlayerCount;
+			DefaultDurationMinutes = defaultDurationMinutes;
 
 			_matchmaker = matchmaker ?? new Matchmaker(1);
 			_matchmaker.SessionChanged += (added, updated, stopped) => SessionChanged?.Invoke(added, updated, stopped);
@@ -29,17 +30,17 @@ namespace DotemChatMatchmaker {
 			//TODO: Per game default playercount
 
 			if (gameIds != null) {
-				searchAttempts = gameIds.Select(id => (_gameNameHandler.GetGameIdAlias(id), playerCount ?? _defaultPlayerCount, description)).ToArray();
+				searchAttempts = gameIds.Select(id => (GameNameHandler.GetGameIdAlias(id), playerCount ?? DefaultPlayerCount, description)).ToArray();
 			} else {
 				if (channelId == null) return new SessionResult.NoAction();
 
 				var defaults = GetChannelDefaultSearchAttempts(channelId);
-				searchAttempts = defaults?.Select(attempt => (_gameNameHandler.GetGameIdAlias(attempt.gameId), playerCount ?? attempt.playerCount, description ?? attempt.description)).ToArray();
+				searchAttempts = defaults?.Select(attempt => (GameNameHandler.GetGameIdAlias(attempt.gameId), playerCount ?? attempt.playerCount, description ?? attempt.description)).ToArray();
 			}
 
 			if (searchAttempts == null) return new SessionResult.NoAction();
 
-			var expireTime = DateTime.Now.AddMinutes(durationMinutes ?? _defaultDurationMinutes);
+			var expireTime = DateTime.Now.AddMinutes(durationMinutes ?? DefaultDurationMinutes);
 			return await _matchmaker.SearchSessionAsync(serverId, userId, expireTime, allowSuggestions, searchAttempts);
 		}
 
@@ -53,7 +54,7 @@ namespace DotemChatMatchmaker {
 
 
 		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid searchId, int? durationMinutes = null) {
-			var expireTime = DateTime.Now.AddMinutes(durationMinutes ?? _defaultDurationMinutes);
+			var expireTime = DateTime.Now.AddMinutes(durationMinutes ?? DefaultDurationMinutes);
 			return await _matchmaker.TryJoinSessionAsync(userId, searchId, expireTime);
 		}
 

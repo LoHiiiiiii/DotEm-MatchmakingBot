@@ -20,6 +20,32 @@ namespace DotemDiscord.Utils {
 
 			if (!expireTimes.Any()) { return ("No users waiting! Shouldn't happen!", null); }
 
+			return (
+				content: $"Searching expires <t:{expireTimes.Min().ToUnixTimeSeconds()}:R>.",
+				components: GetJoinButtons(waits).Build()
+			);
+		}
+
+		public static (string? content, MessageComponent? components) GetSuggestionStructure(IEnumerable<SessionDetails> joinables, ulong userId, Guid? searchId) {
+
+			var builder = GetJoinButtons(joinables, userId.ToString());
+
+			if (searchId != null) {
+				builder.WithButton(
+					label: $"Search",
+					style: ButtonStyle.Success,
+					customId: searchId.ToString(),
+					row: 1
+				);
+			}
+
+			return (
+				content: $"Joinable searches:",
+				components: builder.Build()
+			);
+		}
+
+		private static ComponentBuilder GetJoinButtons(IEnumerable<SessionDetails> waits, string? disablerId = null) {
 			var builder = new ComponentBuilder();
 
 			foreach (var details in waits) {
@@ -35,16 +61,14 @@ namespace DotemDiscord.Utils {
 				builder.WithButton(
 					label: $"{details.GameId}{description}{playerCount}",
 					style: style,
+					disabled: disablerId != null && details.UserExpires.ContainsKey(disablerId),
 					customId: details.SessionId.ToString()
+
 				 // Shared with different messages that search the same game,
 				 // but the message that the button was pressed in is also checked
 				 );
 			}
-
-			return (
-				content: $"Searching expires <t:{expireTimes.Min().ToUnixTimeSeconds()}:R>.",
-				components: builder.Build()
-			); ;
+			return builder;
 		}
 
 		public static (string? content, MessageComponent? components) GetMatchedStructure(string gameName, string[] playerIds, string? description) {
@@ -73,8 +97,23 @@ namespace DotemDiscord.Utils {
 			return ("No longer searching.", null);
 		}
 
-		public static (string? content, MessageComponent? components) GetStoppedStructure(string gameName) {
-			return ($"No longer searching for {gameName}.", null);
+		public static (string? content, MessageComponent? components) GetSuggestionsFinishedStructure() {
+			return ("Suggestions handled.", null);
+		}
+		public static (string? content, MessageComponent? components) GetSuggestionsWaitStructure() {
+			return ("Waiting user to handle suggestions.", null);
+		}
+
+		public static (string? content, MessageComponent? components) GetStoppedStructure(string[] gameNames) {
+			if (!gameNames.Any()) return GetStoppedStructure();
+			var gameString = gameNames[0];
+			if (gameNames.Length >= 2) {
+				for (int i = 1; i < gameNames.Length - 1; ++i) {
+					gameString += $", {gameNames[i]}";
+				}
+				gameString += $" and {gameNames[gameNames.Length - 1]}";
+			}
+			return ($"No longer searching for {gameString}.", null);
 		}
 
 		public static (string? content, MessageComponent? components) GetNoSearchStructure() {

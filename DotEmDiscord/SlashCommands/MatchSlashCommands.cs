@@ -1,23 +1,23 @@
-﻿using Discord.Commands;
-using Discord.Interactions;
+﻿using Discord.Interactions;
 using Discord.WebSocket;
 using DotemChatMatchmaker;
 using DotemDiscord.Utils;
-using Discord.Rest;
-using DotemDiscord.Messages;
 using DotemModel;
+using Discord;
+using DotemDiscord.Handlers;
 
 namespace DotemDiscord.SlashCommands {
 	public class MatchSlashCommands : InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>> {
 
 		private readonly ChatMatchmaker _chatMatchmaker;
+		private readonly ButtonMessageHandler _buttonMessageHandler;
 
-		public MatchSlashCommands(ChatMatchmaker chatMatchmaker) {
+		public MatchSlashCommands(ChatMatchmaker chatMatchmaker, ButtonMessageHandler buttonMessageHandler) {
 			_chatMatchmaker = chatMatchmaker;
+			_buttonMessageHandler = buttonMessageHandler;
 		}
 
 		[SlashCommand("match", "Searches for match in games for a certain period of time")]
-		[Alias("m")]
 		public async Task SearchMatchSlashCommand(string? gameIds = null, int? time = null, int? playerCount = null, string? description = null) {
 			try {
 				if (Context.Guild == null) {
@@ -35,25 +35,53 @@ namespace DotemDiscord.SlashCommands {
 					durationMinutes: time,
 					playerCount: playerCount,
 					description: description,
-					allowSuggestions: false // TODO: Change
+					allowSuggestions: true
 				);
 
-				RestInteractionMessage message = (RestInteractionMessage)await GetOriginalResponseAsync();
+				IUserMessage message = await GetOriginalResponseAsync();
 				var structure = MessageStructures.GetNoSearchStructure();
+				var waitedForInput = false;
 
-				while (true) {
-					if (result is SessionResult.Suggestions suggestions) { } else if (result is SessionResult.Found found) { } else break;
+				while (result is SessionResult.Suggestions suggestions) {
+					if (!waitedForInput) {
+						var inputStructure = MessageStructures.GetSuggestionsWaitStructure();
+						await ModifyOriginalResponseAsync(x => {
+							x.Content = inputStructure.content;
+							x.Components = inputStructure.components;
+						});
+						waitedForInput = true;
+					}
+
+					result = await _buttonMessageHandler.GetSuggestionResultAsync(
+						client: Context.Client,
+						matchmaker: _chatMatchmaker,
+						interaction: Context.Interaction,
+						joinableSessions: suggestions.suggestedSessions,
+							durationMinutes: time ?? _chatMatchmaker.DefaultDurationMinutes,
+							searchParams: suggestions.allowWait
+								? (gameIds: idArray,
+									description: description,
+									playerCount: playerCount)
+								: null
+					);
 				}
 
 				if (result is SessionResult.Matched matched) {
-					MessageStructures.GetMatchedStructure(matched.gameId, matched.playerIds, matched.description);
+					structure = MessageStructures.GetMatchedStructure(matched.matchedSession.GameId, matched.playerIds, matched.description);
 				}
 
 				if (result is SessionResult.Waiting waiting) {
-					SearchMessage.Create(Context.Client, _chatMatchmaker, message, waiting.waits, Context.User.Id);
+					_buttonMessageHandler.CreateSearchMessage(Context.Client, _chatMatchmaker, message, waiting.waits, Context.User.Id);
 					structure = MessageStructures.GetWaitingStructure(waiting.waits, Context.User.Id);
 				}
 
+				if (waitedForInput) {
+					await FollowupAsync(
+						text: structure.content,
+						components: structure.components
+					);
+					return;
+				}
 				await ModifyOriginalResponseAsync(x => {
 					x.Content = structure.content;
 					x.Components = structure.components;
@@ -61,19 +89,18 @@ namespace DotemDiscord.SlashCommands {
 			} catch (Exception e) {
 				Console.WriteLine(e);
 				if (e is TimeoutException) return;
-				await ExceptionHandling.ReportSlashCommandException(Context.Interaction);
+				await ExceptionHandling.ReportInteractionException(Context.Interaction);
 			}
 		}
 
-		[SlashCommand("cancel-matches", "Cancels all or specific searches you are in")]
-		[Alias("mc", "cm", "c")]
+		[SlashCommand("cancel-matches-mc", "Cancels all or specific searches you are in")]
 		public async Task CancelMatchSlashCommand(string? gameIds = null) {
 			try {
 				if (Context.Guild == null) {
 					await RespondAsync("This command cannot be used in a direct message!");
 					return;
 				}
-				await DeferAsync();
+				await DeferAsync(ephemeral: true);
 				var serverId = Context.Guild.Id.ToString();
 				var userId = Context.User.Id.ToString();
 
@@ -83,16 +110,9 @@ namespace DotemDiscord.SlashCommands {
 					await _chatMatchmaker.LeaveAllPlayerSessionsAsync(serverId, userId);
 				} else {
 					var left = await _chatMatchmaker.LeaveSessionsAsync(serverId, userId, idArray);
-					if (left.Any()) {
-						var message = left[0].GameId;
-						if (left.Length >= 2) {
-							for (int i = 1; i < left.Length - 1; ++i) {
-								message += $", {left[i].GameId}";
-							}
-							message += $" and {left[left.Length - 1].GameId}";
-						}
-						structure = MessageStructures.GetStoppedStructure(message);
-					}
+					structure = MessageStructures.GetStoppedStructure(
+						left.Select(sd => _chatMatchmaker.GameNameHandler.GetGameIdFullName(sd.GameId)).ToArray()
+					);
 				}
 
 				await ModifyOriginalResponseAsync(x => {
@@ -102,7 +122,7 @@ namespace DotemDiscord.SlashCommands {
 			} catch (Exception e) {
 				Console.WriteLine(e);
 				if (e is TimeoutException) return;
-				await ExceptionHandling.ReportSlashCommandException(Context.Interaction);
+				await ExceptionHandling.ReportInteractionException(Context.Interaction);
 			}
 		}
 	}
