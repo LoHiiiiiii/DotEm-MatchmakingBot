@@ -74,7 +74,7 @@ namespace DotemDiscord.ButtonMessages {
 				if (!JoinableSessions.TryGetValue(guid, out var _)) { return; }
 
 				var result = await _chatMatchmaker.TryJoinSessionAsync(CreatorId.ToString(), guid, DurationMinutes);
-				if (result is not SessionResult.Waiting 
+				if (result is not SessionResult.Waiting
 					&& result is not SessionResult.NoAction) { ExitResult = result; }
 				await UpdateMessage();
 				await component.DeferAsync();
@@ -94,12 +94,12 @@ namespace DotemDiscord.ButtonMessages {
 		private async Task UpdateMessage() {
 			if (ExitResult != null) {
 				if (Message is RestFollowupMessage) {
-					await ((RestFollowupMessage) Message).DeleteAsync();
+					await ((RestFollowupMessage)Message).DeleteAsync();
 				} else await Message.DeleteAsync();
 				return;
 			}
 
-			var structure =  MessageStructures.GetSuggestionStructure(
+			var structure = MessageStructures.GetSuggestionStructure(
 				joinables: JoinableSessions.Values,
 				userId: CreatorId,
 				searchId: SearchParams != null
@@ -112,30 +112,27 @@ namespace DotemDiscord.ButtonMessages {
 					x.Content = structure.content;
 					x.Components = structure.components;
 				});
-			}
-			else await Message.ModifyAsync(x => {
+			} else await Message.ModifyAsync(x => {
 				x.Content = structure.content;
 				x.Components = structure.components;
 			});
 		}
 
-		private async void HandleSessionChanged(SessionDetails[] _, SessionDetails[] updated, SessionDetails[] stopped) {
+		private async void HandleSessionChanged(IEnumerable<SessionDetails> _, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
 			if (!updated.Any() && !stopped.Any()) { return; }
 
 			await MessageSemaphore.WaitAsync();
 			try {
 				var modified = false;
-				foreach (var search in stopped) {
-					if (!JoinableSessions.ContainsKey(search.SessionId)) continue;
+				foreach (var id in stopped) {
+					if (!JoinableSessions.ContainsKey(id)) continue;
 					modified = true;
-					JoinableSessions.Remove(search.SessionId);
+					JoinableSessions.Remove(id);
 				}
-				if (!modified) {
-					foreach (var search in updated) {
-						if (!JoinableSessions.ContainsKey(search.SessionId)) { continue; }
-						modified = true;
-						break;
-					}
+				foreach (var session in updated) {
+					if (!JoinableSessions.ContainsKey(session.SessionId)) { continue; }
+					modified = true;
+					JoinableSessions[session.SessionId] = session;
 				}
 				if (modified) { await UpdateMessage(); }
 			} finally { MessageSemaphore.Release(); }

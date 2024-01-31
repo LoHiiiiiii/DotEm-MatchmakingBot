@@ -101,7 +101,7 @@ namespace DotemDiscord.Handlers {
 			DiscordSocketClient client,
 			ChatMatchmaker matchmaker,
 			IUserMessage message,
-			SessionDetails[] searches,
+			IEnumerable<SessionDetails> searches,
 			ulong creatorId) => new SearchMessage(client, matchmaker, message, searches, creatorId);
 	}
 }

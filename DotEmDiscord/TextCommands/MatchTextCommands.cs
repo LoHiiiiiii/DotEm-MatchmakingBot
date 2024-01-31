@@ -67,7 +67,10 @@ namespace DotemDiscord.TextCommands {
 					);
 				}
 				if (result is SessionResult.Matched matched) {
-					structure = MessageStructures.GetMatchedStructure(matched.matchedSession.GameId, matched.playerIds, matched.description);
+					structure = MessageStructures.GetMatchedStructure(
+						matched.matchedSession.GameId, 
+						matched.matchedSession.UserExpires.Keys, 
+						matched.matchedSession.Description);
 				}
 
 				if (result is SessionResult.Waiting waiting) {
@@ -103,7 +106,7 @@ namespace DotemDiscord.TextCommands {
 
 		[Command("mc", RunMode = RunMode.Async)]
 		[Alias("c")]
-		public async Task CancelMatchSlashCommand(params string[] gameIds) {
+		public async Task CancelMatchTextCommand(params string[] gameIds) {
 			try {
 				if (Context.Guild == null) {
 					await Context.Message.ReplyAsync("This command cannot be used in a direct message!");
@@ -113,14 +116,23 @@ namespace DotemDiscord.TextCommands {
 				var serverId = Context.Guild.Id.ToString();
 				var userId = Context.User.Id.ToString();
 
-				var structure = MessageStructures.GetStoppedStructure();
+				var structure = MessageStructures.GetCanceledStructure();
 				if (!gameIds.Any()) {
 					await _chatMatchmaker.LeaveAllPlayerSessionsAsync(serverId, userId);
 				} else {
-					var left = await _chatMatchmaker.LeaveSessionsAsync(serverId, userId, gameIds);
-					structure = MessageStructures.GetStoppedStructure(
-						left.Select(sd => _chatMatchmaker.GameNameHandler.GetGameIdFullName(sd.GameId)).ToArray()
-					);
+					var userSessions = await _chatMatchmaker.GetUserSessionsAsync(serverId, userId);
+					(var updated, var stopped) = await _chatMatchmaker.LeaveSessionsAsync(serverId, userId, gameIds);
+					var leftIds = updated
+						.Select(s => s.SessionId)
+						.Concat(stopped)
+						.ToHashSet();
+
+					var gameNames = userSessions
+						.Where(s => leftIds.Contains(s.SessionId))
+						.Select(s => s.GameName)
+						.ToArray();
+
+					structure = MessageStructures.GetStoppedStructure(gameNames);
 				}
 
 				await Context.Message.ReplyAsync(
@@ -162,7 +174,7 @@ namespace DotemDiscord.TextCommands {
 					continue;
 				}
 				if (currentType == CommandType.Description) {
-					description = string.Join(" ", split, i + 1, split.Length - i);
+					description = string.Join(" ", split, i, split.Length - i);
 					break;
 				} else if (currentType == CommandType.PlayerCount) {
 					if (!int.TryParse(split[i], out var parsed)) { continue; }

@@ -21,7 +21,7 @@ namespace DotemDiscord.Utils {
 			if (!expireTimes.Any()) { return ("No users waiting! Shouldn't happen!", null); }
 
 			return (
-				content: $"Searching expires <t:{expireTimes.Min().ToUnixTimeSeconds()}:R>.",
+				content: $"Search expiration <t:{expireTimes.Min().ToUnixTimeSeconds()}:R>.",
 				components: GetJoinButtons(waits).Build()
 			);
 		}
@@ -71,18 +71,20 @@ namespace DotemDiscord.Utils {
 			return builder;
 		}
 
-		public static (string? content, MessageComponent? components) GetMatchedStructure(string gameName, string[] playerIds, string? description) {
+		public static (string? content, MessageComponent? components) GetMatchedStructure(string gameName, IEnumerable<string> playerIds, string? description) {
 			if (!playerIds.Any()) { return ("Players missing!", null); }
 
-			var mentions = $"<@{playerIds[0]}>";
+			var ids = playerIds.ToArray();
+
+			var mentions = $"<@{ids[0]}>";
 
 
-			if (playerIds.Length > 1) {
-				for (int i = 1; i < playerIds.Length - 1; ++i) {
-					mentions += $", <@{playerIds[i]}>";
+			if (ids.Length > 1) {
+				for (int i = 1; i < ids.Length - 1; ++i) {
+					mentions += $", <@{ids[i]}>";
 				}
 
-				mentions += $" and <@{playerIds[playerIds.Length - 1]}>";
+				mentions += $" and <@{ids[ids.Length - 1]}>";
 			}
 
 			return (
@@ -93,19 +95,8 @@ namespace DotemDiscord.Utils {
 			);
 		}
 
-		public static (string? content, MessageComponent? components) GetStoppedStructure() {
-			return ("No longer searching.", null);
-		}
-
-		public static (string? content, MessageComponent? components) GetSuggestionsFinishedStructure() {
-			return ("Suggestions handled.", null);
-		}
-		public static (string? content, MessageComponent? components) GetSuggestionsWaitStructure() {
-			return ("Waiting user to handle suggestions.", null);
-		}
-
-		public static (string? content, MessageComponent? components) GetStoppedStructure(string[] gameNames) {
-			if (!gameNames.Any()) return GetStoppedStructure();
+		public static (string? content, MessageComponent? components) GetStoppedStructure(params string[] gameNames) {
+			if (!gameNames.Any()) return ("No longer searching.", null);
 			var gameString = gameNames[0];
 			if (gameNames.Length >= 2) {
 				for (int i = 1; i < gameNames.Length - 1; ++i) {
@@ -114,6 +105,17 @@ namespace DotemDiscord.Utils {
 				gameString += $" and {gameNames[gameNames.Length - 1]}";
 			}
 			return ($"No longer searching for {gameString}.", null);
+		}
+
+		public static (string? content, MessageComponent? components) GetCanceledStructure() {
+			return ("Canceled searching for everything.", null);
+		}
+
+		public static (string? content, MessageComponent? components) GetSuggestionsFinishedStructure() {
+			return ("Suggestions handled.", null);
+		}
+		public static (string? content, MessageComponent? components) GetSuggestionsWaitStructure() {
+			return ("Waiting user to handle suggestions...", null);
 		}
 
 		public static (string? content, MessageComponent? components) GetNoSearchStructure() {

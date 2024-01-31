@@ -67,7 +67,10 @@ namespace DotemDiscord.SlashCommands {
 				}
 
 				if (result is SessionResult.Matched matched) {
-					structure = MessageStructures.GetMatchedStructure(matched.matchedSession.GameId, matched.playerIds, matched.description);
+					structure = MessageStructures.GetMatchedStructure(
+						matched.matchedSession.GameId, 
+						matched.matchedSession.UserExpires.Keys, 
+						matched.matchedSession.Description);
 				}
 
 				if (result is SessionResult.Waiting waiting) {
@@ -105,14 +108,24 @@ namespace DotemDiscord.SlashCommands {
 				var userId = Context.User.Id.ToString();
 
 				var idArray = gameIds?.Split(' ') ?? [];
-				var structure = MessageStructures.GetStoppedStructure();
+
+				var structure = MessageStructures.GetCanceledStructure();
 				if (!idArray.Any()) {
 					await _chatMatchmaker.LeaveAllPlayerSessionsAsync(serverId, userId);
 				} else {
-					var left = await _chatMatchmaker.LeaveSessionsAsync(serverId, userId, idArray);
-					structure = MessageStructures.GetStoppedStructure(
-						left.Select(sd => _chatMatchmaker.GameNameHandler.GetGameIdFullName(sd.GameId)).ToArray()
-					);
+					var userSessions = await _chatMatchmaker.GetUserSessionsAsync(serverId, userId);
+					(var updated, var stopped) = await _chatMatchmaker.LeaveSessionsAsync(serverId, userId, idArray);
+					var leftIds = updated
+						.Select(s => s.SessionId)
+						.Concat(stopped)
+						.ToHashSet();
+
+					var gameNames = userSessions
+						.Where(s => leftIds.Contains(s.SessionId))
+						.Select(s => s.GameName)
+						.ToArray();
+
+					structure = MessageStructures.GetStoppedStructure(gameNames);
 				}
 
 				await ModifyOriginalResponseAsync(x => {

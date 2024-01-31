@@ -30,7 +30,7 @@ namespace DotemDiscord.Handlers {
 				var muikea = Emote.Parse("<:muikea:296390386547556352>");
 				await message.AddReactionAsync(muikea);
 			} catch (HttpException exception) {
-				if (exception.DiscordCode != DiscordErrorCode.UnknownEmoji) throw exception;
+				if (exception.DiscordCode != DiscordErrorCode.UnknownEmoji) throw;
 				var backupMuikea = new Emoji("😏");
 				await message.AddReactionAsync(backupMuikea);
 			}

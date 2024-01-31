@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using DotemDiscord.Handlers;
 using Discord.Interactions;
 using DotemChatMatchmaker;
+using DotemMatchmaker;
 
 namespace DotemDiscord
 {
@@ -15,10 +16,10 @@ namespace DotemDiscord
             _serviceProvider = CreateProvider();
         }
 
-        static void Main(string[] args)
+        private static void Main(string[] args)
             => new Program().RunAsync(args).GetAwaiter().GetResult();
 
-        static IServiceProvider CreateProvider() {
+        private static IServiceProvider CreateProvider() {
             var clientConfig = new DiscordSocketConfig { 
                 GatewayIntents = GatewayIntents.MessageContent | GatewayIntents.AllUnprivileged,
                 UseInteractionSnowflakeDate = false,
@@ -35,11 +36,11 @@ namespace DotemDiscord
 			}
 
 			var collection = new ServiceCollection()
-				.AddSingleton<ChatGameNameHandler>()
+				.AddSingleton<Matchmaker>()
 				.AddSingleton<ChatMatchmaker>()
                 .AddSingleton(clientConfig)
                 .AddSingleton<DiscordSocketClient>()
-                .AddSingleton(new CommandServiceConfig())
+                .AddSingleton<CommandServiceConfig>()
                 .AddSingleton<CommandService>()
 				.AddSingleton(interactionConfig)
                 .AddSingleton<InteractionService>()
@@ -52,7 +53,9 @@ namespace DotemDiscord
         }
 
         public async Task RunAsync(string[] args) {
-            var client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
+
+
+			var client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
 
             var textCommandHandler = _serviceProvider.GetRequiredService<TextCommandHandler>();
             await textCommandHandler.InstallTextCommandsAsync();
@@ -77,7 +80,12 @@ namespace DotemDiscord
             await client.LoginAsync(TokenType.Bot, token);
             await client.StartAsync();
 
-            await Task.Delay(Timeout.Infinite);
+
+			var matchmaker = _serviceProvider.GetRequiredService<Matchmaker>();
+            matchmaker.Initialize();
+
+            matchmaker.StartExpirationLoop();
+			await Task.Delay(Timeout.Infinite);
         }
     }
 }
