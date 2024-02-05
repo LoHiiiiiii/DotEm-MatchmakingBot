@@ -1,7 +1,7 @@
 ﻿using Discord;
 using Discord.Rest;
 using Discord.WebSocket;
-using DotemChatMatchmaker;
+using DotemMatchmaker;
 using DotemDiscord.Utils;
 using DotemModel;
 
@@ -10,7 +10,7 @@ namespace DotemDiscord.ButtonMessages {
 	public class SuggestionMessage {
 
 		private readonly DiscordSocketClient _client;
-		private readonly ChatMatchmaker _chatMatchmaker;
+		private readonly Matchmaker _matchmaker;
 
 		public Guid SuggestionId { get; } = Guid.NewGuid();
 
@@ -19,7 +19,7 @@ namespace DotemDiscord.ButtonMessages {
 		public ulong CreatorId { get; }
 		public ulong ServerId { get; }
 		public ulong ChannelId { get; }
-		public int DurationMinutes { get; } //Outside of search params because full session might have someone left once accepted
+		public int? DurationMinutes { get; } //Outside of search params because full session might have someone left once accepted
 		public (string[]? gameIds, string? description, int? playerCount)? SearchParams { get; }
 		public SemaphoreSlim SuggestionSignal { get; } = new SemaphoreSlim(0, 1);
 		public SemaphoreSlim MessageSemaphore { get; } = new SemaphoreSlim(0, 1);// To handle creating before accepting calls
@@ -28,19 +28,19 @@ namespace DotemDiscord.ButtonMessages {
 
 		public SuggestionMessage(
 			DiscordSocketClient client,
-			ChatMatchmaker chatMatchmaker,
+			Matchmaker matchmaker,
 			IUserMessage message,
 			IEnumerable<SessionDetails> joinableSessions,
 			ulong creatorId,
-			int durationMinutes,
+			int? durationMinutes,
 			(string[]? gameIds, string? description, int? playerCount)? searchParams,
 			Guid id
 		) {
 			_client = client;
 			_client.ButtonExecuted += HandleButtonPress;
 			_client.MessageDeleted += HandleMessageDeleted;
-			_chatMatchmaker = chatMatchmaker;
-			_chatMatchmaker.SessionChanged += HandleSessionChanged;
+			_matchmaker = matchmaker;
+			_matchmaker.SessionChanged += HandleSessionChanged;
 			Message = message;
 			JoinableSessions = joinableSessions.ToDictionary(s => s.SessionId, s => s);
 			CreatorId = creatorId;
@@ -54,13 +54,12 @@ namespace DotemDiscord.ButtonMessages {
 			await MessageSemaphore.WaitAsync();
 			try {
 				if (component.Data.CustomId == SuggestionId.ToString()) {
-					ExitResult = (await _chatMatchmaker.SearchSessionAsync(
+					ExitResult = (await _matchmaker.SearchSessionAsync(
 						serverId: ServerId.ToString(),
 						userId: CreatorId.ToString(),
-						channelId: ChannelId.ToString(),
-						gameIds: SearchParams?.gameIds,
-						playerCount: SearchParams?.playerCount,
-						durationMinutes: DurationMinutes,
+						gameIds: SearchParams?.gameIds ?? [],
+						maxPlayerCount: SearchParams?.playerCount,
+						joinDuration: DurationMinutes,
 						description: SearchParams?.description,
 						allowSuggestions: false
 						));
@@ -73,7 +72,7 @@ namespace DotemDiscord.ButtonMessages {
 				if (!Guid.TryParse(component.Data.CustomId, out var guid)) { return; }
 				if (!JoinableSessions.TryGetValue(guid, out var _)) { return; }
 
-				var result = await _chatMatchmaker.TryJoinSessionAsync(CreatorId.ToString(), guid, DurationMinutes);
+				var result = await _matchmaker.TryJoinSessionAsync(CreatorId.ToString(), guid, DurationMinutes);
 				if (result is not SessionResult.Waiting
 					&& result is not SessionResult.NoAction) { ExitResult = result; }
 				await UpdateMessage();
@@ -86,7 +85,7 @@ namespace DotemDiscord.ButtonMessages {
 			if (Released) return;
 			_client.ButtonExecuted -= HandleButtonPress;
 			_client.MessageDeleted -= HandleMessageDeleted;
-			_chatMatchmaker.SessionChanged -= HandleSessionChanged;
+			_matchmaker.SessionChanged -= HandleSessionChanged;
 			SuggestionSignal.Release();
 			Released = true;
 		}

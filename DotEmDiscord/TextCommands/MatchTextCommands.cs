@@ -1,18 +1,21 @@
 ﻿using Discord.Commands;
-using DotemChatMatchmaker;
 using DotemDiscord.Utils;
 using DotemModel;
 using Discord;
 using DotemDiscord.Handlers;
+using DotemMatchmaker;
+using DotemChatMatchmaker;
 
 namespace DotemDiscord.TextCommands {
 	public class MatchTextCommands : ModuleBase<SocketCommandContext> {
 
-		private readonly ChatMatchmaker _chatMatchmaker;
+		private readonly Matchmaker _matchmaker;
+		private readonly ChatContext _chatContext;
 		private readonly ButtonMessageHandler _buttonMessageHandler;
 
-		public MatchTextCommands(ChatMatchmaker chatMatchmaker, ButtonMessageHandler buttonMessageHandler) {
-			_chatMatchmaker = chatMatchmaker;
+		public MatchTextCommands(Matchmaker matchmaker, ChatContext chatContext, ButtonMessageHandler buttonMessageHandler) {
+			_matchmaker = matchmaker;
+			_chatContext = chatContext;
 			_buttonMessageHandler = buttonMessageHandler;
 		}
 
@@ -27,18 +30,19 @@ namespace DotemDiscord.TextCommands {
 					return;
 				}
 
-				(var games, var time, var playerCount, var description) = ParseCommand(commands);
+				(var gameIds, var time, var maxPlayerCount, var description) = ParseCommand(commands);
 
-				var result = await _chatMatchmaker.SearchSessionAsync(
+				var channelDefaults = _chatContext.GetChannelDefaultSearchParamaters(Context.Channel.ToString() ?? "");
+
+				var result = await _matchmaker.SearchSessionAsync(
 					serverId: Context.Guild.Id.ToString(),
 					userId: Context.User.Id.ToString(),
-					channelId: Context.Channel.Id.ToString(),
-					gameIds: games.ToArray(),
-					durationMinutes: time,
-					playerCount: playerCount,
-					description: description,
-					allowSuggestions: true
+					gameIds: gameIds ?? channelDefaults.gameIds,
+					joinDuration: time ?? channelDefaults.duration,
+					maxPlayerCount: maxPlayerCount ?? channelDefaults.maxPlayerCount,
+					description: description
 				);
+
 
 				var structure = MessageStructures.GetNoSearchStructure(); 
 				IUserMessage? responseMessage = null;
@@ -55,14 +59,14 @@ namespace DotemDiscord.TextCommands {
 
 					result = await _buttonMessageHandler.GetSuggestionResultAsync(
 						client: Context.Client,
-						matchmaker: _chatMatchmaker,
+						matchmaker: _matchmaker,
 						user: Context.User,
 						joinableSessions: suggestions.suggestedSessions,
-						durationMinutes: time ?? _chatMatchmaker.DefaultDurationMinutes,
+						durationMinutes: time ?? _matchmaker.DefaultJoinDurationMinutes,
 						searchParams: suggestions.allowWait
-							? (gameIds: games,
+							? (gameIds: gameIds,
 								description,
-								playerCount)
+								maxPlayerCount)
 							: null
 					);
 				}
@@ -80,7 +84,7 @@ namespace DotemDiscord.TextCommands {
 						components: structure.components,
 						allowedMentions: AllowedMentions.None
 					);
-					_buttonMessageHandler.CreateSearchMessage(Context.Client, _chatMatchmaker, message, waiting.waits, Context.User.Id);
+					_buttonMessageHandler.CreateSearchMessage(Context.Client, _matchmaker, message, waiting.waits, Context.User.Id);
 					return;
 				}
 
@@ -118,10 +122,10 @@ namespace DotemDiscord.TextCommands {
 
 				var structure = MessageStructures.GetCanceledStructure();
 				if (!gameIds.Any()) {
-					await _chatMatchmaker.LeaveAllPlayerSessionsAsync(serverId, userId);
+					await _matchmaker.LeaveAllPlayerSessionsAsync(serverId, userId);
 				} else {
-					var userSessions = await _chatMatchmaker.GetUserSessionsAsync(serverId, userId);
-					(var updated, var stopped) = await _chatMatchmaker.LeaveSessionsAsync(serverId, userId, gameIds);
+					var userSessions = await _matchmaker.GetUserSessionsAsync(serverId, userId);
+					(var updated, var stopped) = await _matchmaker.LeaveGamesAsync(serverId, userId, gameIds);
 					var leftIds = updated
 						.Select(s => s.SessionId)
 						.Concat(stopped)

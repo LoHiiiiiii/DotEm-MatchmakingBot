@@ -1,6 +1,6 @@
 ﻿using Discord.WebSocket;
 using Discord;
-using DotemChatMatchmaker;
+using DotemMatchmaker;
 using DotemDiscord.ButtonMessages;
 using DotemDiscord.Utils;
 using DotemModel;
@@ -16,10 +16,10 @@ namespace DotemDiscord.Handlers {
 
 		public async Task<SessionResult> GetSuggestionResultAsync(
 			DiscordSocketClient client,
-			ChatMatchmaker matchmaker,
+			Matchmaker matchmaker,
 			SocketInteraction interaction,
 			IEnumerable<SessionDetails> joinableSessions,
-			int durationMinutes,
+			int? durationMinutes,
 			(string[]? gameIds, string? description, int? playerCount)? searchParams
 		) {
 			var guid = Guid.NewGuid();
@@ -37,7 +37,7 @@ namespace DotemDiscord.Handlers {
 			);
 			var suggestion = new SuggestionMessage(
 				client: client,
-				chatMatchmaker: matchmaker,
+				matchmaker: matchmaker,
 				message: followup,
 				joinableSessions: joinableSessions,
 				creatorId: interaction.User.Id,
@@ -48,7 +48,7 @@ namespace DotemDiscord.Handlers {
 			suggestion.MessageSemaphore.Release();
 
 			var cts = new CancellationTokenSource();
-			SuggestionTimeout(durationMinutes, cts, suggestion);
+			SuggestionTimeout(TimeoutMinutes, cts, suggestion);
 
 			await suggestion.SuggestionSignal.WaitAsync(cts.Token);
 			return suggestion.ExitResult ?? new SessionResult.NoAction();
@@ -62,10 +62,10 @@ namespace DotemDiscord.Handlers {
 
 		public async Task<SessionResult> GetSuggestionResultAsync(
 			DiscordSocketClient client,
-			ChatMatchmaker matchmaker,
+			Matchmaker matchmaker,
 			IUser user,
 			IEnumerable<SessionDetails> joinableSessions,
-			int durationMinutes,
+			int? durationMinutes,
 			(string[]? gameIds, string? description, int? playerCount)? searchParams
 		) {
 			var guid = Guid.NewGuid();
@@ -82,7 +82,7 @@ namespace DotemDiscord.Handlers {
 			);
 			var suggestion = new SuggestionMessage(
 				client: client,
-				chatMatchmaker: matchmaker,
+				matchmaker: matchmaker,
 				message: dm,
 				joinableSessions: joinableSessions,
 				creatorId: user.Id,
@@ -99,7 +99,7 @@ namespace DotemDiscord.Handlers {
 
 		public SearchMessage CreateSearchMessage(
 			DiscordSocketClient client,
-			ChatMatchmaker matchmaker,
+			Matchmaker matchmaker,
 			IUserMessage message,
 			IEnumerable<SessionDetails> searches,
 			ulong creatorId) => new SearchMessage(client, matchmaker, message, searches, creatorId);

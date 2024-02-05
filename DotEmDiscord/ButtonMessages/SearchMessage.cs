@@ -1,7 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
-using DotemChatMatchmaker;
 using DotemDiscord.Utils;
+using DotemMatchmaker;
 using DotemModel;
 
 namespace DotemDiscord.ButtonMessages {
@@ -9,7 +9,7 @@ namespace DotemDiscord.ButtonMessages {
 	public class SearchMessage {
 
 		private readonly DiscordSocketClient _client;
-		private readonly ChatMatchmaker _chatMatchmaker;
+		private readonly Matchmaker _matchmaker;
 
 		public IUserMessage Message { get; }
 		public Dictionary<Guid, SessionDetails> Searches { get; }
@@ -19,12 +19,12 @@ namespace DotemDiscord.ButtonMessages {
 		private SemaphoreSlim messageSemaphore = new SemaphoreSlim(1, 1);
 		private bool released;
 
-		public SearchMessage(DiscordSocketClient client, ChatMatchmaker chatMatchmaker, IUserMessage message, IEnumerable<SessionDetails> searches, ulong creatorId) {
+		public SearchMessage(DiscordSocketClient client, Matchmaker matchmaker, IUserMessage message, IEnumerable<SessionDetails> searches, ulong creatorId) {
 			_client = client;
 			_client.ButtonExecuted += HandleButtonPress;
 			_client.MessageDeleted += HandleMessageDeleted;
-			_chatMatchmaker = chatMatchmaker;
-			_chatMatchmaker.SessionChanged += HandleSessionChanged;
+			_matchmaker = matchmaker;
+			_matchmaker.SessionChanged += HandleSessionChanged;
 			Message = message;
 			CreatorId = creatorId;
 			Searches = searches.ToDictionary(s => s.SessionId, s => s);
@@ -40,7 +40,7 @@ namespace DotemDiscord.ButtonMessages {
 
 					var stringId = component.User.Id.ToString();
 					if (search.UserExpires.ContainsKey(stringId)) {
-						(var updated, var stopped) = await _chatMatchmaker.LeaveSessionsAsync(stringId, search.SessionId);
+						(var updated, var stopped) = await _matchmaker.LeaveSessionsAsync(stringId, search.SessionId);
 
 						foreach (var session in updated) {
 							if (!Searches.ContainsKey(session.SessionId)) { continue; }
@@ -56,7 +56,7 @@ namespace DotemDiscord.ButtonMessages {
 						return;
 					}
 
-					var result = await _chatMatchmaker.TryJoinSessionAsync(stringId, search.SessionId);
+					var result = await _matchmaker.TryJoinSessionAsync(stringId, search.SessionId);
 
 					var (structure, ephemeral) = (MessageStructures.GetFailedJoinStructure(), true);
 
@@ -109,7 +109,7 @@ namespace DotemDiscord.ButtonMessages {
 			if (released) { return; }
 			_client.ButtonExecuted -= HandleButtonPress;
 			_client.MessageDeleted -= HandleMessageDeleted;
-			_chatMatchmaker.SessionChanged -= HandleSessionChanged;
+			_matchmaker.SessionChanged -= HandleSessionChanged;
 			Searches.Clear();
 			released = true;
 		}

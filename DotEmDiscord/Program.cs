@@ -37,7 +37,7 @@ namespace DotemDiscord
 
 			var collection = new ServiceCollection()
 				.AddSingleton<Matchmaker>()
-				.AddSingleton<ChatMatchmaker>()
+				.AddSingleton<ChatContext>()
                 .AddSingleton(clientConfig)
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton<CommandServiceConfig>()
@@ -83,7 +83,6 @@ namespace DotemDiscord
 
 			var matchmaker = _serviceProvider.GetRequiredService<Matchmaker>();
             matchmaker.Initialize();
-
             matchmaker.StartExpirationLoop();
 			await Task.Delay(Timeout.Infinite);
         }
