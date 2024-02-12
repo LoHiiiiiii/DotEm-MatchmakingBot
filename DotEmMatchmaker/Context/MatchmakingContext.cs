@@ -7,7 +7,7 @@ namespace DotemMatchmaker.Context {
 
 		public string DataSource { get; }
 
-		public MatchmakingContext(string dataSource = "dotemDiscord.db") {
+		public MatchmakingContext(string dataSource = "dotemMatchmaking.db") {
 			DataSource = dataSource;
 		}
 
@@ -202,6 +202,12 @@ namespace DotemMatchmaker.Context {
 			return await SessionQueryAsync(connection, sql, new { sessionIds });
 		}
 
+		public async Task<IEnumerable<SessionDetails>> GetAllSessionsAsync() {
+			using (var connection = GetOpenConnection()) {
+				return await SessionQueryAsync(connection, selectBase);
+			}
+		}
+
 		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveSessionsAsync(string userId, params Guid[] sessionIds) {
 			using (var connection = GetOpenConnection()) {
 				return await RemoveJoinsFromSessionsAsync(connection, [userId], sessionIds);
@@ -262,7 +268,7 @@ namespace DotemMatchmaker.Context {
 					FROM
 						userJoin
 					WHERE
-						expireTime < ${nameof(now)};
+						expireTime <= ${nameof(now)};
 				";
 
 				var expiredIds = (await connection.QueryAsync<Guid>(sql, new { now }))?.Distinct().ToArray() ?? [];
@@ -272,7 +278,7 @@ namespace DotemMatchmaker.Context {
 					DELETE FROM
 						userJoin
 					WHERE
-						expireTime < $now;
+						expireTime <= $now;
 				";
 
 				command.Parameters.AddWithValue(nameof(now), now);

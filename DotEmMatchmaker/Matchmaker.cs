@@ -29,11 +29,6 @@ namespace DotemMatchmaker {
 
 		private SemaphoreSlim sessionSemaphore = new SemaphoreSlim(1, 1);
 
-
-		public void StartExpirationLoop() {
-			ExpireIntervalLoop();
-		}
-
 		public async Task<SessionResult> SearchSessionAsync(string serverId, string userId, DateTimeOffset expireTime,
 			bool allowSuggestions = true, params SearchParameters[] searchParameters
 		) {
@@ -232,25 +227,27 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		private async void ExpireIntervalLoop() {
-			while (true) {
-				await Task.Delay(ExpireClearIntervalMilliseconds);
-				await sessionSemaphore.WaitAsync();
-				try {
-					var (updatedSessions, stoppedSessions) = await _context.ClearExpiredJoinsAsync();
-					if (!updatedSessions.Any() && !stoppedSessions.Any()) { continue; }
-					SessionChanged?.Invoke(
-						added: [],
-						updated: updatedSessions,
-						stopped: stoppedSessions
-					);
-				} finally { sessionSemaphore.Release(); }
-			}
+		public async Task ClearpExpiredJoinsAsync() {
+			await sessionSemaphore.WaitAsync();
+			try {
+				var (updatedSessions, stoppedSessions) = await _context.ClearExpiredJoinsAsync();
+				if (!updatedSessions.Any() && !stoppedSessions.Any()) { return; }
+				SessionChanged?.Invoke(
+					added: [],
+					updated: updatedSessions,
+					stopped: stoppedSessions
+				);
+			} finally { sessionSemaphore.Release(); }
 		}
 
 		public async Task<IEnumerable<SessionDetails>> GetSessionsAsync(params Guid[] ids) {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetSessionsAsync(ids); } finally { sessionSemaphore.Release(); }
+		}
+
+		public async Task<IEnumerable<SessionDetails>> GetAllSessionsAsync() {
+			await sessionSemaphore.WaitAsync();
+			try { return await _context.GetAllSessionsAsync(); } finally { sessionSemaphore.Release(); }
 		}
 
 		public async Task<IEnumerable<SessionDetails>> GetUserSessionsAsync(string serverId, string userId) {

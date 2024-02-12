@@ -53,17 +53,12 @@ namespace DotemDiscord.Handlers {
 			suggestion.MessageSemaphore.Release();
 
 			var cts = new CancellationTokenSource();
-			SuggestionTimeout(timeOutMinutes, cts, suggestion);
+			cts.CancelAfter(timeOutMinutes * 60 * 1000);
 
 			await suggestion.SuggestionSignal.WaitAsync(cts.Token);
 			return suggestion.ExitResult ?? new SessionResult.NoAction();
 		}
 
-		public async void SuggestionTimeout(int durationMinutes, CancellationTokenSource tokenSource, SuggestionMessage suggestionMessage) {
-			await Task.Delay(durationMinutes * 60 * 1000);
-			if (suggestionMessage.Released) { return; }
-			tokenSource.Cancel();
-		}
 
 		public async Task<SessionResult> GetSuggestionResultAsync(
 			IUser user,
