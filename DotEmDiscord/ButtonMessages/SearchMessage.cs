@@ -1,5 +1,6 @@
 ﻿using Discord;
 using Discord.WebSocket;
+using DotemDiscord.Context;
 using DotemDiscord.Utils;
 using DotemMatchmaker;
 using DotemModel;
@@ -9,6 +10,7 @@ namespace DotemDiscord.ButtonMessages {
 	public class SearchMessage {
 
 		private readonly DiscordSocketClient _client;
+		private readonly DiscordContext _context;
 		private readonly Matchmaker _matchmaker;
 
 		public IUserMessage Message { get; }
@@ -19,12 +21,13 @@ namespace DotemDiscord.ButtonMessages {
 		private SemaphoreSlim messageSemaphore = new SemaphoreSlim(1, 1);
 		private bool released;
 
-		public SearchMessage(DiscordSocketClient client, Matchmaker matchmaker, IUserMessage message, IEnumerable<SessionDetails> searches, ulong creatorId) {
+		public SearchMessage(DiscordSocketClient client, Matchmaker matchmaker, DiscordContext context, IUserMessage message, IEnumerable<SessionDetails> searches, ulong creatorId) {
 			_client = client;
 			_client.ButtonExecuted += HandleButtonPress;
 			_client.MessageDeleted += HandleMessageDeleted;
 			_matchmaker = matchmaker;
 			_matchmaker.SessionChanged += HandleSessionChanged;
+			_context = context;
 			Message = message;
 			CreatorId = creatorId;
 			Searches = searches.ToDictionary(s => s.SessionId, s => s);
@@ -49,6 +52,11 @@ namespace DotemDiscord.ButtonMessages {
 
 						foreach (var id in stopped) {
 							if (Searches.ContainsKey(id)) Searches.Remove(id);
+							await _context.DeleteSessionConnectionAsync(Message.Id, id);
+						}
+
+						if (!Searches.Any()) {
+							await ReleaseAsync();
 						}
 
 						await UpdateMessage();
@@ -67,7 +75,7 @@ namespace DotemDiscord.ButtonMessages {
 							description: matched.matchedSession.Description
 						);
 						ephemeral = false;
-						Searches.Remove(matched.matchedSession.SessionId);
+						await ReleaseAsync();
 					}
 
 					await UpdateMessage();
@@ -91,9 +99,7 @@ namespace DotemDiscord.ButtonMessages {
 
 		// Remember to await semaphore before calling!
 		private async Task UpdateMessage() {
-			if (released) return;
 			var stillSearching = Searches.Any();
-			if (!stillSearching) { Release(); }
 			var structure = stillSearching
 				? MessageStructures.GetWaitingStructure(Searches.Values, CreatorId)
 				: MessageStructures.GetStoppedStructure();
@@ -105,8 +111,11 @@ namespace DotemDiscord.ButtonMessages {
 			});
 		}
 
-		private void Release() {
+		private async Task ReleaseAsync() {
 			if (released) { return; }
+			if (Searches.Any()) {
+				await _context.DeleteSessionConnectionAsync(messageId: Message.Id, sessionIds: Searches.Keys.ToArray());
+			}
 			_client.ButtonExecuted -= HandleButtonPress;
 			_client.MessageDeleted -= HandleMessageDeleted;
 			_matchmaker.SessionChanged -= HandleSessionChanged;
@@ -118,7 +127,7 @@ namespace DotemDiscord.ButtonMessages {
 			if (message.Id != Message.Id) { return; }
 			await messageSemaphore.WaitAsync();
 			try {
-				Release();
+				await ReleaseAsync();
 			} finally { messageSemaphore.Release(); }
 		}
 

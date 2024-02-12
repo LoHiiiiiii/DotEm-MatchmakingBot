@@ -4,15 +4,18 @@ using DotemMatchmaker;
 using DotemDiscord.ButtonMessages;
 using DotemDiscord.Utils;
 using DotemModel;
+using DotemDiscord.Context;
 
 namespace DotemDiscord.Handlers {
 	public class ButtonMessageHandler {
 
-		public int TimeoutMinutes { get; }
+		private readonly int timeOutMinutes = 15;
 
-		public ButtonMessageHandler(int timeoutMinutes) {
-			TimeoutMinutes = timeoutMinutes;
-		}	
+		public readonly DiscordContext _discordContext;
+
+		public ButtonMessageHandler(DiscordContext discordContext) {
+			_discordContext = discordContext;
+		}
 
 		public async Task<SessionResult> GetSuggestionResultAsync(
 			DiscordSocketClient client,
@@ -48,7 +51,7 @@ namespace DotemDiscord.Handlers {
 			suggestion.MessageSemaphore.Release();
 
 			var cts = new CancellationTokenSource();
-			SuggestionTimeout(TimeoutMinutes, cts, suggestion);
+			SuggestionTimeout(timeOutMinutes, cts, suggestion);
 
 			await suggestion.SuggestionSignal.WaitAsync(cts.Token);
 			return suggestion.ExitResult ?? new SessionResult.NoAction();
@@ -97,11 +100,71 @@ namespace DotemDiscord.Handlers {
 		}
 
 
-		public SearchMessage CreateSearchMessage(
+		public async Task<SearchMessage> CreateSearchMessageAsync(
 			DiscordSocketClient client,
 			Matchmaker matchmaker,
 			IUserMessage message,
 			IEnumerable<SessionDetails> searches,
-			ulong creatorId) => new SearchMessage(client, matchmaker, message, searches, creatorId);
+			ulong creatorId
+		) {
+			await _discordContext.AddSessionConnectionAsync(message.Channel.Id, message.Id, creatorId, searches.Select(s => s.SessionId).ToArray());
+			return new SearchMessage(client, matchmaker, _discordContext, message, searches, creatorId);
+		}
+
+		public async Task CreatePreExistingSearchMessagesAsync(
+			DiscordSocketClient client,
+			Matchmaker matchmaker
+		) {
+			var connections = await _discordContext.GetSessionConenctionsAsync();
+
+			if (connections == null || !connections.Any()) { return; }
+
+			var channels = connections
+				.Select(c => c.ChannelId)
+				.ToDictionary(id => id, id => (IMessageChannel?)client.GetChannel(id));
+
+			var messageTasks = connections
+				.Select(c => (channel: channels[c.ChannelId], messageId: c.MessageId))
+				.ToDictionary(
+					pair => pair.messageId,
+					pair => pair.channel == null
+						? Task.FromResult<IMessage?>(null)
+						: pair.channel.GetMessageAsync(pair.messageId)
+				);
+
+			if (messageTasks == null) { return; }
+
+			var activeSessions = (await matchmaker.GetSessionsAsync(connections.SelectMany(c => c.SessionIds).ToArray()))
+				.ToDictionary(s => s.SessionId, s => s);
+
+			var sessions = connections
+				.SelectMany(c => c.SessionIds)
+				.ToDictionary(id => id, id => activeSessions?.GetValueOrDefault(id));
+
+			foreach (var connection in connections) {
+				var message = (IUserMessage?)await messageTasks[connection.MessageId];
+				if (message == null) {
+					await _discordContext.DeleteSessionConnectionAsync(connection);
+					continue;
+				}
+
+				var existingSessions = connection.SessionIds
+					.Select(id => sessions.GetValueOrDefault(id))
+					.Where(s => s != null)
+					.Select(s => s!);
+
+				var nonExistingSessions = connection.SessionIds
+					.Where(id => sessions.GetValueOrDefault(id) == null)
+					.ToArray();
+
+				if (nonExistingSessions.Any()) {
+					await _discordContext.DeleteSessionConnectionAsync(connection.MessageId, nonExistingSessions.ToArray());
+				}
+
+				if (!existingSessions.Any()) { continue; }
+
+				new SearchMessage(client, matchmaker, _discordContext, message, existingSessions, connection.UserId);
+			}
+		}
 	}
 }

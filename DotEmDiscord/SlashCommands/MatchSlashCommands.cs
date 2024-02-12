@@ -11,17 +11,17 @@ namespace DotemDiscord.SlashCommands {
 	public class MatchSlashCommands : InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>> {
 
 		private readonly Matchmaker _matchmaker;
-		private readonly ChatContext _chatContext;
+		private readonly ExtensionContext _chatContext;
 		private readonly ButtonMessageHandler _buttonMessageHandler;
 
-		public MatchSlashCommands(Matchmaker matchmaker, ChatContext chatContext, ButtonMessageHandler buttonMessageHandler) {
+		public MatchSlashCommands(Matchmaker matchmaker, ExtensionContext chatContext, ButtonMessageHandler buttonMessageHandler) {
 			_matchmaker = matchmaker;
 			_chatContext = chatContext;
 			_buttonMessageHandler = buttonMessageHandler;
 		}
 
 		[SlashCommand("match", "Searches for match in games for a certain period of time")]
-		public async Task SearchMatchSlashCommand(string? gameIds = null, int? time = null, int? maxPlayerCount = null, string? description = null) {
+		public async Task SearchMatchSlashCommandAsync(string? gameIds = null, int? time = null, int? maxPlayerCount = null, string? description = null) {
 			try {
 				if (Context.Guild == null) {
 					await RespondAsync("This command cannot be used in a direct message!");
@@ -77,7 +77,7 @@ namespace DotemDiscord.SlashCommands {
 				}
 
 				if (result is SessionResult.Waiting waiting) {
-					_buttonMessageHandler.CreateSearchMessage(Context.Client, _matchmaker, message, waiting.waits, Context.User.Id);
+					await _buttonMessageHandler.CreateSearchMessageAsync(Context.Client, _matchmaker, message, waiting.waits, Context.User.Id);
 					structure = MessageStructures.GetWaitingStructure(waiting.waits, Context.User.Id);
 				}
 
@@ -100,7 +100,7 @@ namespace DotemDiscord.SlashCommands {
 		}
 
 		[SlashCommand("cancel-matches-mc", "Cancels all or specific searches you are in")]
-		public async Task CancelMatchSlashCommand(string? gameIds = null) {
+		public async Task CancelMatchSlashCommandAsync(string? gameIds = null) {
 			try {
 				if (Context.Guild == null) {
 					await RespondAsync("This command cannot be used in a direct message!");

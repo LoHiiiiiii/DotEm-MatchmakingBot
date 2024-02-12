@@ -291,11 +291,11 @@ namespace DotemMatchmaker.Context {
 			command.CommandText = $@"
 					DELETE FROM userJoin
 					WHERE
-					    {(userIds != null ? $"userId IN ({string.Join(",", sessionIds.Select((_, i) => "@u" + i))}) AND" : "")}
-						sessionId IN ({string.Join(",", sessionIds.Select((_, i) => "@g" + i))});
+					    {(userIds != null ? $"userId IN ({string.Join(",", sessionIds.Select((_, i) => "$u" + i))}) AND" : "")}
+						sessionId IN ({string.Join(",", sessionIds.Select((_, i) => "$g" + i))});
 				";
-			if (userIds != null) command.Parameters.AddRange(userIds.Select((user, i) => new SqliteParameter("@u" + i, user)));
-			command.Parameters.AddRange(sessionIds.Select((guid, i) => new SqliteParameter("@g" + i, guid)));
+			if (userIds != null) command.Parameters.AddRange(userIds.Select((user, i) => new SqliteParameter("$u" + i, user)));
+			command.Parameters.AddRange(sessionIds.Select((guid, i) => new SqliteParameter("$g" + i, guid)));
 			await command.ExecuteNonQueryAsync();
 
 			return await GetSessionChangesAsync(connection, sessionIds);

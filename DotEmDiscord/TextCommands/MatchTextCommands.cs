@@ -10,17 +10,17 @@ namespace DotemDiscord.TextCommands {
 	public class MatchTextCommands : ModuleBase<SocketCommandContext> {
 
 		private readonly Matchmaker _matchmaker;
-		private readonly ChatContext _chatContext;
+		private readonly ExtensionContext _chatContext;
 		private readonly ButtonMessageHandler _buttonMessageHandler;
 
-		public MatchTextCommands(Matchmaker matchmaker, ChatContext chatContext, ButtonMessageHandler buttonMessageHandler) {
+		public MatchTextCommands(Matchmaker matchmaker, ExtensionContext chatContext, ButtonMessageHandler buttonMessageHandler) {
 			_matchmaker = matchmaker;
 			_chatContext = chatContext;
 			_buttonMessageHandler = buttonMessageHandler;
 		}
 
 		[Command("m", RunMode = RunMode.Async)]
-		public async Task SearchMatchTextCommands(params string[] commands) {
+		public async Task SearchMatchTextCommandsAsync(params string[] commands) {
 			try {
 				if (Context.Guild == null) {
 					await Context.Message.ReplyAsync(
@@ -84,7 +84,7 @@ namespace DotemDiscord.TextCommands {
 						components: structure.components,
 						allowedMentions: AllowedMentions.None
 					);
-					_buttonMessageHandler.CreateSearchMessage(Context.Client, _matchmaker, message, waiting.waits, Context.User.Id);
+					await _buttonMessageHandler.CreateSearchMessageAsync(Context.Client, _matchmaker, message, waiting.waits, Context.User.Id);
 					return;
 				}
 
@@ -110,7 +110,7 @@ namespace DotemDiscord.TextCommands {
 
 		[Command("mc", RunMode = RunMode.Async)]
 		[Alias("c")]
-		public async Task CancelMatchTextCommand(params string[] gameIds) {
+		public async Task CancelMatchTextCommandAsync(params string[] gameIds) {
 			try {
 				if (Context.Guild == null) {
 					await Context.Message.ReplyAsync("This command cannot be used in a direct message!");

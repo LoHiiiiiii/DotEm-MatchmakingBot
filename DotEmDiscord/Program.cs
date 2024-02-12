@@ -6,6 +6,7 @@ using DotemDiscord.Handlers;
 using Discord.Interactions;
 using DotemChatMatchmaker;
 using DotemMatchmaker;
+using DotemDiscord.Context;
 
 namespace DotemDiscord
 {
@@ -30,21 +31,17 @@ namespace DotemDiscord
                 ThrowOnError = true,
             };
 
-			var timeOutEnv = Environment.GetEnvironmentVariable("MESSAGE_TIMEOUT_MINUTES");
-			if (timeOutEnv == null || !int.TryParse(timeOutEnv, out var timeoutMinutes)) {
-                timeoutMinutes = 14; //Default
-			}
-
 			var collection = new ServiceCollection()
 				.AddSingleton<Matchmaker>()
-				.AddSingleton<ChatContext>()
+				.AddSingleton<ExtensionContext>()
                 .AddSingleton(clientConfig)
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton<CommandServiceConfig>()
                 .AddSingleton<CommandService>()
 				.AddSingleton(interactionConfig)
                 .AddSingleton<InteractionService>()
-                .AddSingleton(new ButtonMessageHandler(timeoutMinutes))
+				.AddSingleton<DiscordContext>()
+				.AddSingleton<ButtonMessageHandler>()
 				.AddSingleton<TextCommandHandler>()
                 .AddSingleton<SlashCommandHandler>()
                 .AddSingleton<JokeHandler>();
@@ -53,12 +50,10 @@ namespace DotemDiscord
         }
 
         public async Task RunAsync(string[] args) {
-
-
 			var client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
 
             var textCommandHandler = _serviceProvider.GetRequiredService<TextCommandHandler>();
-            await textCommandHandler.InstallTextCommandsAsync();
+			await textCommandHandler.InstallTextCommandsAsync();
 
 			var idVar = Environment.GetEnvironmentVariable("TEST_GUILDID");
             if (idVar == null || !ulong.TryParse(idVar, out var guildId)) {
@@ -67,7 +62,12 @@ namespace DotemDiscord
             }
 
 			client.Ready += async () => {
-                var slashCommandHandler = _serviceProvider.GetRequiredService<SlashCommandHandler>();
+				_serviceProvider.GetRequiredService<DiscordContext>().Initialize();
+				var matchmaker = _serviceProvider.GetRequiredService<Matchmaker>();
+				matchmaker.Initialize();
+				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync(client, matchmaker);
+				matchmaker.StartExpirationLoop();
+				var slashCommandHandler = _serviceProvider.GetRequiredService<SlashCommandHandler>();
                 await slashCommandHandler.InstallSlashCommandsAsync(guildId);
             };
 
@@ -76,14 +76,10 @@ namespace DotemDiscord
                 await Task.CompletedTask;
             };
 
-            var token = Environment.GetEnvironmentVariable("BOT_TOKEN");
+			var token = Environment.GetEnvironmentVariable("BOT_TOKEN");
             await client.LoginAsync(TokenType.Bot, token);
             await client.StartAsync();
 
-
-			var matchmaker = _serviceProvider.GetRequiredService<Matchmaker>();
-            matchmaker.Initialize();
-            matchmaker.StartExpirationLoop();
 			await Task.Delay(Timeout.Infinite);
         }
     }

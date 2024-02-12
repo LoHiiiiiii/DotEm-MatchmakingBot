@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DotEmChatMatchmaker\DotemChat.csproj" />
+    <ProjectReference Include="..\DotEmChatMatchmaker\DotemExtensions.csproj" />
     <ProjectReference Include="..\DotemModel\DotemModel.csproj" />
   </ItemGroup>
   

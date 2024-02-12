@@ -3,14 +3,14 @@
 using Dapper;
 using System.Data;
 
-namespace DotemMatchmaker.Context {
+namespace DotemModel {
 
-	abstract class SqliteTypeHandler<T> : SqlMapper.TypeHandler<T> {
+	public abstract class SqliteTypeHandler<T> : SqlMapper.TypeHandler<T> {
 		public override void SetValue(IDbDataParameter parameter, T? value)
 			=> parameter.Value = value;
 	}
 
-	class DateTimeOffsetHandler : SqliteTypeHandler<DateTimeOffset> {
+	public class DateTimeOffsetHandler : SqliteTypeHandler<DateTimeOffset> {
 		public override DateTimeOffset Parse(object value) {
 			try {
 				return DateTimeOffset.Parse((string)value);
@@ -21,7 +21,7 @@ namespace DotemMatchmaker.Context {
 		}
 	}
 
-	class GuidHandler : SqliteTypeHandler<Guid> {
+	public class GuidHandler : SqliteTypeHandler<Guid> {
 		public override Guid Parse(object value) {
 			try {
 				return Guid.Parse((string)value);
