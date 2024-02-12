@@ -7,10 +7,10 @@ namespace DotemDiscord.Handlers {
 	public class JokeHandler {
 		private readonly string[] muikeaPrefixes = new [] { ",m", "-m"};
 
-		public async Task<bool> TryMuikea(SocketUserMessage message) {
+		public async Task<bool> TryMuikeaAsync(SocketUserMessage message) {
 			var hasMuikea = HasMuikeaPrefix(message);
 			if (hasMuikea) {
-				await ReactMuikea(message);
+				await ReactMuikeaAsync(message);
 			}
 			return hasMuikea;
 		}
@@ -25,7 +25,7 @@ namespace DotemDiscord.Handlers {
 			return false;
 		}
 
-		private async Task ReactMuikea(SocketMessage message) {
+		private async Task ReactMuikeaAsync(SocketMessage message) {
 			try {
 				var muikea = Emote.Parse("<:muikea:296390386547556352>");
 				await message.AddReactionAsync(muikea);

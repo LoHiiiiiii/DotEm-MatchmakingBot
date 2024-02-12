@@ -12,14 +12,16 @@ namespace DotemDiscord.Handlers {
 		private readonly int timeOutMinutes = 15;
 
 		public readonly DiscordContext _discordContext;
+		public readonly Matchmaker _matchmaker;
+		public readonly DiscordSocketClient _client;
 
-		public ButtonMessageHandler(DiscordContext discordContext) {
+		public ButtonMessageHandler(DiscordContext discordContext, Matchmaker matchmaker, DiscordSocketClient client) {
 			_discordContext = discordContext;
+			_matchmaker = matchmaker;
+			_client = client;
 		}
 
 		public async Task<SessionResult> GetSuggestionResultAsync(
-			DiscordSocketClient client,
-			Matchmaker matchmaker,
 			SocketInteraction interaction,
 			IEnumerable<SessionDetails> joinableSessions,
 			int? durationMinutes,
@@ -39,8 +41,8 @@ namespace DotemDiscord.Handlers {
 				ephemeral: true
 			);
 			var suggestion = new SuggestionMessage(
-				client: client,
-				matchmaker: matchmaker,
+				client: _client,
+				matchmaker: _matchmaker,
 				message: followup,
 				joinableSessions: joinableSessions,
 				creatorId: interaction.User.Id,
@@ -64,8 +66,6 @@ namespace DotemDiscord.Handlers {
 		}
 
 		public async Task<SessionResult> GetSuggestionResultAsync(
-			DiscordSocketClient client,
-			Matchmaker matchmaker,
 			IUser user,
 			IEnumerable<SessionDetails> joinableSessions,
 			int? durationMinutes,
@@ -84,8 +84,8 @@ namespace DotemDiscord.Handlers {
 				components: structure.components
 			);
 			var suggestion = new SuggestionMessage(
-				client: client,
-				matchmaker: matchmaker,
+				client: _client,
+				matchmaker: _matchmaker,
 				message: dm,
 				joinableSessions: joinableSessions,
 				creatorId: user.Id,
@@ -101,27 +101,22 @@ namespace DotemDiscord.Handlers {
 
 
 		public async Task<SearchMessage> CreateSearchMessageAsync(
-			DiscordSocketClient client,
-			Matchmaker matchmaker,
 			IUserMessage message,
 			IEnumerable<SessionDetails> searches,
 			ulong creatorId
 		) {
 			await _discordContext.AddSessionConnectionAsync(message.Channel.Id, message.Id, creatorId, searches.Select(s => s.SessionId).ToArray());
-			return new SearchMessage(client, matchmaker, _discordContext, message, searches, creatorId);
+			return new SearchMessage(_client, _matchmaker, _discordContext, message, searches, creatorId);
 		}
 
-		public async Task CreatePreExistingSearchMessagesAsync(
-			DiscordSocketClient client,
-			Matchmaker matchmaker
-		) {
+		public async Task CreatePreExistingSearchMessagesAsync() {
 			var connections = await _discordContext.GetSessionConenctionsAsync();
 
 			if (connections == null || !connections.Any()) { return; }
 
 			var channels = connections
 				.Select(c => c.ChannelId)
-				.ToDictionary(id => id, id => (IMessageChannel?)client.GetChannel(id));
+				.ToDictionary(id => id, id => (IMessageChannel?)_client.GetChannel(id));
 
 			var messageTasks = connections
 				.Select(c => (channel: channels[c.ChannelId], messageId: c.MessageId))
@@ -134,7 +129,7 @@ namespace DotemDiscord.Handlers {
 
 			if (messageTasks == null) { return; }
 
-			var activeSessions = (await matchmaker.GetSessionsAsync(connections.SelectMany(c => c.SessionIds).ToArray()))
+			var activeSessions = (await _matchmaker.GetSessionsAsync(connections.SelectMany(c => c.SessionIds).ToArray()))
 				.ToDictionary(s => s.SessionId, s => s);
 
 			var sessions = connections
@@ -163,7 +158,7 @@ namespace DotemDiscord.Handlers {
 
 				if (!existingSessions.Any()) { continue; }
 
-				new SearchMessage(client, matchmaker, _discordContext, message, existingSessions, connection.UserId);
+				new SearchMessage(_client, _matchmaker, _discordContext, message, existingSessions, connection.UserId);
 			}
 		}
 	}

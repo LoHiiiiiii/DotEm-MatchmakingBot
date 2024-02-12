@@ -7,7 +7,7 @@ namespace DotemMatchmaker.Context {
 
 		public string DataSource { get; }
 
-		public MatchmakingContext(string dataSource) {
+		public MatchmakingContext(string dataSource = "dotemDiscord.db") {
 			DataSource = dataSource;
 		}
 
@@ -253,7 +253,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> ClearExpiredJoins() {
+		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> ClearExpiredJoinsAsync() {
 			using (var connection = GetOpenConnection()) {
 				var now = DateTime.Now;
 				var sql = $@"

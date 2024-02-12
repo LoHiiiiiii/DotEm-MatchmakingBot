@@ -56,8 +56,6 @@ namespace DotemDiscord.SlashCommands {
 					}
 
 					result = await _buttonMessageHandler.GetSuggestionResultAsync(
-						client: Context.Client,
-						matchmaker: _matchmaker,
 						interaction: Context.Interaction,
 						joinableSessions: suggestions.suggestedSessions,
 							durationMinutes: time ?? _matchmaker.DefaultJoinDurationMinutes,
@@ -77,7 +75,7 @@ namespace DotemDiscord.SlashCommands {
 				}
 
 				if (result is SessionResult.Waiting waiting) {
-					await _buttonMessageHandler.CreateSearchMessageAsync(Context.Client, _matchmaker, message, waiting.waits, Context.User.Id);
+					await _buttonMessageHandler.CreateSearchMessageAsync(message, waiting.waits, Context.User.Id);
 					structure = MessageStructures.GetWaitingStructure(waiting.waits, Context.User.Id);
 				}
 
@@ -95,7 +93,7 @@ namespace DotemDiscord.SlashCommands {
 			} catch (Exception e) {
 				Console.WriteLine(e);
 				if (e is TimeoutException) return;
-				await ExceptionHandling.ReportInteractionException(Context.Interaction);
+				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
 		}
 
@@ -139,7 +137,7 @@ namespace DotemDiscord.SlashCommands {
 			} catch (Exception e) {
 				Console.WriteLine(e);
 				if (e is TimeoutException) return;
-				await ExceptionHandling.ReportInteractionException(Context.Interaction);
+				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
 		}
 	}

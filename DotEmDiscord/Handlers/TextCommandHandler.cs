@@ -31,7 +31,7 @@ namespace DotemDiscord.Handlers {
 			int argPos = 0;
 
 			try {
-				var wasMuikea = await _jokeHandler.TryMuikea(message);
+				var wasMuikea = await _jokeHandler.TryMuikeaAsync(message);
 				if (wasMuikea) return;
 
 				if (!message.HasMentionPrefix(_client.CurrentUser, ref argPos)) {

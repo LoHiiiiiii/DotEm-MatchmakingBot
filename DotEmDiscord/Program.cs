@@ -7,6 +7,7 @@ using Discord.Interactions;
 using DotemChatMatchmaker;
 using DotemMatchmaker;
 using DotemDiscord.Context;
+using DotemMatchmaker.Context;
 
 namespace DotemDiscord
 {
@@ -32,6 +33,8 @@ namespace DotemDiscord
             };
 
 			var collection = new ServiceCollection()
+				.AddSingleton<MatchmakingContext>()
+				.AddSingleton<DiscordContext>()
 				.AddSingleton<Matchmaker>()
 				.AddSingleton<ExtensionContext>()
                 .AddSingleton(clientConfig)
@@ -40,7 +43,6 @@ namespace DotemDiscord
                 .AddSingleton<CommandService>()
 				.AddSingleton(interactionConfig)
                 .AddSingleton<InteractionService>()
-				.AddSingleton<DiscordContext>()
 				.AddSingleton<ButtonMessageHandler>()
 				.AddSingleton<TextCommandHandler>()
                 .AddSingleton<SlashCommandHandler>()
@@ -63,9 +65,9 @@ namespace DotemDiscord
 
 			client.Ready += async () => {
 				_serviceProvider.GetRequiredService<DiscordContext>().Initialize();
+				_serviceProvider.GetRequiredService<MatchmakingContext>().Initialize();
 				var matchmaker = _serviceProvider.GetRequiredService<Matchmaker>();
-				matchmaker.Initialize();
-				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync(client, matchmaker);
+				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync();
 				matchmaker.StartExpirationLoop();
 				var slashCommandHandler = _serviceProvider.GetRequiredService<SlashCommandHandler>();
                 await slashCommandHandler.InstallSlashCommandsAsync(guildId);

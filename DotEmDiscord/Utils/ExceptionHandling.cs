@@ -6,7 +6,7 @@ namespace DotemDiscord.Utils {
 
 		private static string internalError = "Internal server error!";
 
-		public async static Task ReportInteractionException(SocketInteraction interaction) {
+		public async static Task ReportInteractionExceptionAsync(SocketInteraction interaction) {
 			try {
 				if (!interaction.HasResponded) {
 					await interaction.RespondAsync(text: internalError, ephemeral: true);
@@ -19,7 +19,7 @@ namespace DotemDiscord.Utils {
 			}
 		}
 
-		public async static Task ReportTextCommandException(SocketUserMessage message) {
+		public async static Task ReportTextCommandExceptionAsync(SocketUserMessage message) {
 			try {
 				await message.ReplyAsync(
 					text: internalError,

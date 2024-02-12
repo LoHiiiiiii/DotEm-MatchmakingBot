@@ -58,8 +58,6 @@ namespace DotemDiscord.TextCommands {
 					}
 
 					result = await _buttonMessageHandler.GetSuggestionResultAsync(
-						client: Context.Client,
-						matchmaker: _matchmaker,
 						user: Context.User,
 						joinableSessions: suggestions.suggestedSessions,
 						durationMinutes: time ?? _matchmaker.DefaultJoinDurationMinutes,
@@ -84,7 +82,7 @@ namespace DotemDiscord.TextCommands {
 						components: structure.components,
 						allowedMentions: AllowedMentions.None
 					);
-					await _buttonMessageHandler.CreateSearchMessageAsync(Context.Client, _matchmaker, message, waiting.waits, Context.User.Id);
+					await _buttonMessageHandler.CreateSearchMessageAsync(message, waiting.waits, Context.User.Id);
 					return;
 				}
 
@@ -104,7 +102,7 @@ namespace DotemDiscord.TextCommands {
 			} catch (Exception e) {
 				Console.WriteLine(e);
 				if (e is TimeoutException) return;
-				await ExceptionHandling.ReportTextCommandException(Context.Message);
+				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}
 		}
 
@@ -147,7 +145,7 @@ namespace DotemDiscord.TextCommands {
 			} catch (Exception e) {
 				Console.WriteLine(e);
 				if (e is TimeoutException) return;
-				await ExceptionHandling.ReportTextCommandException(Context.Message);
+				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}
 		}
 

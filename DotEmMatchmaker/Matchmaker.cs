@@ -11,11 +11,16 @@ namespace DotemMatchmaker {
 
 		private readonly MatchmakingContext _context;
 
-		public Matchmaker(int expireClearIntervalMinutes = 1, int defaultMaxPlayerCount = 2, int defaultDurationMinutes = 30, string? dbPathRelative = null) {
+		public Matchmaker(
+			MatchmakingContext context,
+			int expireClearIntervalMinutes = 1, 
+			int defaultMaxPlayerCount = 2, 
+			int defaultDurationMinutes = 30
+		) {
+			_context = context;
 			DefaultMaxPlayerCount = defaultMaxPlayerCount;
 			DefaultJoinDurationMinutes = defaultDurationMinutes;
 			ExpireClearIntervalMilliseconds = expireClearIntervalMinutes * 1000 * 60;
-			_context = new MatchmakingContext(dbPathRelative ?? "dotemMatchmaking.db");
 		}
 
 		public delegate void SessionChangedEvent(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped);
@@ -24,9 +29,6 @@ namespace DotemMatchmaker {
 
 		private SemaphoreSlim sessionSemaphore = new SemaphoreSlim(1, 1);
 
-		public void Initialize() {
-			_context.Initialize();
-		}
 
 		public void StartExpirationLoop() {
 			ExpireIntervalLoop();
@@ -39,7 +41,7 @@ namespace DotemMatchmaker {
 
 			await sessionSemaphore.WaitAsync();
 			try {
-				var clear = await _context.ClearExpiredJoins();
+				var clear = await _context.ClearExpiredJoinsAsync();
 
 				var addedSessions = new List<SessionDetails>();
 				var updatedSessions = clear.updated.ToList();
@@ -201,7 +203,7 @@ namespace DotemMatchmaker {
 		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, DateTimeOffset expireTime) {
 			await sessionSemaphore.WaitAsync();
 			try {
-				var clear = await _context.ClearExpiredJoins();
+				var clear = await _context.ClearExpiredJoinsAsync();
 
 				var updatedSessions = clear.updated.ToList();
 				var stoppedSessions = clear.stopped.ToList();
@@ -235,7 +237,7 @@ namespace DotemMatchmaker {
 				await Task.Delay(ExpireClearIntervalMilliseconds);
 				await sessionSemaphore.WaitAsync();
 				try {
-					var (updatedSessions, stoppedSessions) = await _context.ClearExpiredJoins();
+					var (updatedSessions, stoppedSessions) = await _context.ClearExpiredJoinsAsync();
 					if (!updatedSessions.Any() && !stoppedSessions.Any()) { continue; }
 					SessionChanged?.Invoke(
 						added: [],

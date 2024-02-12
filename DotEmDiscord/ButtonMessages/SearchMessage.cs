@@ -59,7 +59,7 @@ namespace DotemDiscord.ButtonMessages {
 							await ReleaseAsync();
 						}
 
-						await UpdateMessage();
+						await UpdateMessageAsync();
 						await component.DeferAsync();
 						return;
 					}
@@ -78,7 +78,7 @@ namespace DotemDiscord.ButtonMessages {
 						await ReleaseAsync();
 					}
 
-					await UpdateMessage();
+					await UpdateMessageAsync();
 					await component.DeferAsync();
 
 					if (result is SessionResult.Waiting) return;
@@ -92,13 +92,13 @@ namespace DotemDiscord.ButtonMessages {
 			} catch (Exception e) {
 				Console.WriteLine(e);
 				if (e is TimeoutException) return;
-				await ExceptionHandling.ReportInteractionException(component);
+				await ExceptionHandling.ReportInteractionExceptionAsync(component);
 
 			}
 		}
 
 		// Remember to await semaphore before calling!
-		private async Task UpdateMessage() {
+		private async Task UpdateMessageAsync() {
 			var stillSearching = Searches.Any();
 			var structure = stillSearching
 				? MessageStructures.GetWaitingStructure(Searches.Values, CreatorId)
@@ -147,7 +147,7 @@ namespace DotemDiscord.ButtonMessages {
 					modified = true;
 					Searches[session.SessionId] = session;
 				}
-				if (modified) { await UpdateMessage(); }
+				if (modified) { await UpdateMessageAsync(); }
 			} finally { messageSemaphore.Release(); }
 		}
 	}

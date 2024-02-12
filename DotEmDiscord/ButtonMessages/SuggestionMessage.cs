@@ -63,7 +63,7 @@ namespace DotemDiscord.ButtonMessages {
 						description: SearchParams?.description,
 						allowSuggestions: false
 						));
-					await UpdateMessage();
+					await UpdateMessageAsync();
 					await component.DeferAsync();
 					Release();
 					return;
@@ -75,7 +75,7 @@ namespace DotemDiscord.ButtonMessages {
 				var result = await _matchmaker.TryJoinSessionAsync(CreatorId.ToString(), guid, DurationMinutes);
 				if (result is not SessionResult.Waiting
 					&& result is not SessionResult.NoAction) { ExitResult = result; }
-				await UpdateMessage();
+				await UpdateMessageAsync();
 				await component.DeferAsync();
 				Release();
 			} finally { MessageSemaphore.Release(); }
@@ -90,11 +90,12 @@ namespace DotemDiscord.ButtonMessages {
 			Released = true;
 		}
 
-		private async Task UpdateMessage() {
+		private async Task UpdateMessageAsync() {
 			if (ExitResult != null) {
 				if (Message is RestFollowupMessage) {
 					await ((RestFollowupMessage)Message).DeleteAsync();
 				} else await Message.DeleteAsync();
+				Release();
 				return;
 			}
 
@@ -133,7 +134,7 @@ namespace DotemDiscord.ButtonMessages {
 					modified = true;
 					JoinableSessions[session.SessionId] = session;
 				}
-				if (modified) { await UpdateMessage(); }
+				if (modified) { await UpdateMessageAsync(); }
 			} finally { MessageSemaphore.Release(); }
 		}
 
