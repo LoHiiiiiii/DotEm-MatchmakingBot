@@ -68,7 +68,7 @@ namespace DotemDiscord
 				_serviceProvider.GetRequiredService<DiscordContext>().Initialize();
 				_serviceProvider.GetRequiredService<MatchmakingContext>().Initialize();
 				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync();
-                await _serviceProvider.GetRequiredService<MatchExpirer>().StartClearingExpireds();
+                await _serviceProvider.GetRequiredService<MatchExpirer>().StartClearingExpiredJoins();
 				var slashCommandHandler = _serviceProvider.GetRequiredService<SlashCommandHandler>();
                 await slashCommandHandler.InstallSlashCommandsAsync(guildId);
             };
