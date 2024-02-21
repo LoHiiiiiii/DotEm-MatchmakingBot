@@ -13,8 +13,8 @@ namespace DotemMatchmaker {
 
 		public Matchmaker(
 			MatchmakingContext context,
-			int expireClearIntervalMinutes = 1, 
-			int defaultMaxPlayerCount = 2, 
+			int expireClearIntervalMinutes = 1,
+			int defaultMaxPlayerCount = 2,
 			int defaultDurationMinutes = 30
 		) {
 			_context = context;
@@ -141,60 +141,6 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveSessionsAsync(string userId, params Guid[] sessionIds) {
-			await sessionSemaphore.WaitAsync();
-			try {
-				(var updatedMatches, var stoppedMatches) = await _context.LeaveSessionsAsync(userId, sessionIds);
-				try {
-					return (updatedMatches, stoppedMatches);
-				} finally {
-					if (updatedMatches.Any() || stoppedMatches.Any()) {
-						SessionChanged?.Invoke(
-							added: [],
-							updated: updatedMatches ?? [],
-							stopped: stoppedMatches ?? []
-						);
-					}
-				}
-			} finally { sessionSemaphore.Release(); }
-		}
-
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveGamesAsync(string serverId, string userId, params string[] gameIds) {
-			await sessionSemaphore.WaitAsync();
-			try {
-				(var updatedMatches, var stoppedMatches) = await _context.LeaveGamesAsync(userId, gameIds);
-				try {
-					return (updatedMatches, stoppedMatches);
-				} finally {
-					if (updatedMatches.Any() || stoppedMatches.Any()) {
-						SessionChanged?.Invoke(
-							added: [],
-							updated: updatedMatches ?? [],
-							stopped: stoppedMatches ?? []
-						);
-					}
-				}
-			} finally { sessionSemaphore.Release(); }
-		}
-
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveAllPlayerSessionsAsync(string serverId, string userId) {
-			await sessionSemaphore.WaitAsync();
-			try {
-				(var updatedMatches, var stoppedMatches) = await _context.LeaveAllSessionsAsync(userId);
-				try {
-					return (updatedMatches, stoppedMatches);
-				} finally {
-					if (updatedMatches.Any() || stoppedMatches.Any()) {
-						SessionChanged?.Invoke(
-							added: [],
-							updated: updatedMatches ?? [],
-							stopped: stoppedMatches ?? []
-						);
-					}
-				}
-			} finally { sessionSemaphore.Release(); }
-		}
-
 		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, DateTimeOffset expireTime) {
 			await sessionSemaphore.WaitAsync();
 			try {
@@ -227,7 +173,7 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task ClearpExpiredJoinsAsync() {
+		public async Task ClearExpiredJoinsAsync() {
 			await sessionSemaphore.WaitAsync();
 			try {
 				var (updatedSessions, stoppedSessions) = await _context.ClearExpiredJoinsAsync();
@@ -240,6 +186,64 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
+		#region Leaving Sessions
+		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveSessionsAsync(string userId, params Guid[] sessionIds) {
+			await sessionSemaphore.WaitAsync();
+			try {
+				(var updatedMatches, var stoppedMatches) = await _context.LeaveSessionsAsync(userId, sessionIds);
+				try {
+					return (updatedMatches, stoppedMatches);
+				} finally {
+					if (updatedMatches.Any() || stoppedMatches.Any()) {
+						SessionChanged?.Invoke(
+							added: [],
+							updated: updatedMatches ?? [],
+							stopped: stoppedMatches ?? []
+						);
+					}
+				}
+			} finally { sessionSemaphore.Release(); }
+		}
+
+		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveGamesAsync(string serverId, string userId, params string[] gameIds) {
+			await sessionSemaphore.WaitAsync();
+			try {
+				(var updatedMatches, var stoppedMatches) = await _context.LeaveGamesAsync(userId, serverId, gameIds);
+				try {
+					return (updatedMatches, stoppedMatches);
+				} finally {
+					if (updatedMatches.Any() || stoppedMatches.Any()) {
+						SessionChanged?.Invoke(
+							added: [],
+							updated: updatedMatches ?? [],
+							stopped: stoppedMatches ?? []
+						);
+					}
+				}
+			} finally { sessionSemaphore.Release(); }
+		}
+
+		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveAllPlayerSessionsAsync(string serverId, string userId) {
+			await sessionSemaphore.WaitAsync();
+			try {
+				(var updatedMatches, var stoppedMatches) = await _context.LeaveAllSessionsAsync(userId);
+				try {
+					return (updatedMatches, stoppedMatches);
+				} finally {
+					if (updatedMatches.Any() || stoppedMatches.Any()) {
+						SessionChanged?.Invoke(
+							added: [],
+							updated: updatedMatches ?? [],
+							stopped: stoppedMatches ?? []
+						);
+					}
+				}
+			} finally { sessionSemaphore.Release(); }
+		}
+
+		#endregion
+
+		#region Session Getting
 		public async Task<IEnumerable<SessionDetails>> GetSessionsAsync(params Guid[] ids) {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetSessionsAsync(ids); } finally { sessionSemaphore.Release(); }
@@ -254,6 +258,67 @@ namespace DotemMatchmaker {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetUserExistingSessionsAsync(serverId, userId); } finally { sessionSemaphore.Release(); }
 		}
+		#endregion
+
+		#region Alias Handling
+		public async Task AddGameAliasAsync(string serverId, string aliasId, params string[] gameIds) {
+			await sessionSemaphore.WaitAsync();
+			try {
+				var updated = await _context.AddGameAliasAsync(serverId, aliasId, gameIds);
+				if (!updated.Any()) { return; }
+				SessionChanged?.Invoke(
+					added: [],
+					updated: updated,
+					stopped: []
+					);
+			} finally { sessionSemaphore.Release(); }
+		}
+
+		public async Task<Dictionary<string, string>> GetAllGameAliasesAsync(string serverId) {
+			await sessionSemaphore.WaitAsync();
+			try { return await _context.GetAllGameAliasesAsync(serverId); } finally { sessionSemaphore.Release(); }
+		}
+
+		public async Task<Dictionary<string, string>> GetGameAliasesAsync(string serverId, params string[] gameIds) {
+			await sessionSemaphore.WaitAsync();
+			try { return await _context.GetGameAliasesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
+		}
+		public async Task DeleteGameAliasesAsync(string serverId, params string[] gameIds) {
+			await sessionSemaphore.WaitAsync();
+			try { await _context.DeleteGameAliasesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
+		}
+
+		#endregion
+
+		#region Game Name Handling
+		public async Task AddGameNameAsync(string serverId, string aliasId, string gameId) {
+			await sessionSemaphore.WaitAsync();
+			try {
+				var updated = await _context.AddGameNameAsync(serverId, aliasId, gameId);
+				if (!updated.Any()) { return; }
+				SessionChanged?.Invoke(
+					added: [],
+					updated: updated,
+					stopped: []
+					);
+			} finally { sessionSemaphore.Release(); }
+		}
+
+		public async Task<Dictionary<string, string>> GetAllGameNamesAsync(string serverId) {
+			await sessionSemaphore.WaitAsync();
+			try { return await _context.GetAllGameNamesAsync(serverId); } finally { sessionSemaphore.Release(); }
+		}
+
+		public async Task<Dictionary<string, string>> GetGameNamesAsync(string serverId, params string[] gameIds) {
+			await sessionSemaphore.WaitAsync();
+			try { return await _context.GetGameAliasesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
+		}
+		public async Task DeleteGameNamesAsync(string serverId, params string[] gameIds) {
+			await sessionSemaphore.WaitAsync();
+			try { await _context.DeleteGameAliasesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
+		}
+
+		#endregion
 
 		#region Overloads
 		public async Task<SessionResult> SearchSessionAsync(

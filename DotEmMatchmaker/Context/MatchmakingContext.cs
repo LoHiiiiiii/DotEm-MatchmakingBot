@@ -20,8 +20,7 @@ namespace DotemMatchmaker.Context {
 		private void EnsureDatabaseCreated() {
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();
-				command.CommandText =
-				@"
+				command.CommandText = @"
 					CREATE TABLE IF NOT EXISTS session (
 						sessionId TEXT NOT NULL PRIMARY KEY,
 						serverId TEXT NOT NULL,
@@ -38,47 +37,53 @@ namespace DotemMatchmaker.Context {
                         UNIQUE(userId, sessionId)
 					);
 
-					CREATE TABLE IF NOT EXISTS fullName (
+					CREATE TABLE IF NOT EXISTS gameName (
 						gameId TEXT UNIQUE NOT NULL,
-						gameName TEXT
+						serverId TEXT NOT NULL,
+						name TEXT,
+                        UNIQUE(gameId, serverId)
 					);
 
-					CREATE TABLE IF NOT EXISTS alias (
-						gameId TEXT UNIQUE NOT NULL,
-						aliasGameId TEXT NOT NULL
+					CREATE TABLE IF NOT EXISTS gameAlias (
+						gameId TEXT NOT NULL,
+						serverId TEXT NOT NULL,
+						aliasGameId TEXT NOT NULL,
+                        UNIQUE(gameId, serverId)
 					);
 				";
 				command.ExecuteNonQuery();
 			}
 		}
 
-		private string selectBase = @$"
-					SELECT 
-						session.sessionId AS sessionId, 
-						session.gameId AS gameId, 
-						gameName,
-						serverId,
-						maxPlayerCount,
-						description,
-						userJoin.rowid AS rowid,
-						userId,
-						expireTime
-					FROM
-						session
-					LEFT JOIN fullName ON
-						fullname.gameId = session.gameId
-					LEFT JOIN userJoin ON
-						userJoin.sessionId = session.sessionId";
+		#region Sessions and Joins
+		private string sessionSelectBase = @$"
+			SELECT 
+				session.sessionId AS sessionId, 
+				session.gameId AS gameId, 
+				name,
+				session.serverId AS serverId,
+				maxPlayerCount,
+				description,
+				userJoin.rowid AS rowid,
+				userId,
+				expireTime
+			FROM
+				session
+			LEFT JOIN gameName ON
+				gameName.gameId = session.gameId
+				AND gameName.serverId = session.serverId
+			LEFT JOIN userJoin ON
+				userJoin.sessionId = session.sessionId";
 
 		public async Task<IEnumerable<SessionDetails>> GetUserJoinableSessionsAsync(string serverId, string userId, IEnumerable<string>? gameIds = null) {
 			using (var connection = GetOpenConnection()) {
-				var aliasIds = (await GetGameAliasesAsync(connection, gameIds?.ToArray()))?.Values.Distinct();
+				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray()))?.Values.Distinct();
 
-				var sql = @$"{selectBase}
+				var sql = @$"{sessionSelectBase}
 					WHERE 
-						serverId = $serverId
+						session.serverId = $serverId
 						AND userId != $userId
-						{(aliasIds == null ? "" : "AND session.GameId IN $gameIds")}
+						{(aliasIds == null ? "" : "AND session.GameId IN $gameIds")};
 				";
 
 				object? parameters = aliasIds != null
@@ -115,7 +120,7 @@ namespace DotemMatchmaker.Context {
 
 		public async Task<SessionDetails> CreateSessionAsync(string serverId, string userId, string gameId, int maxPlayerCount, string? description, DateTimeOffset expireTime) {
 			using (var connection = GetOpenConnection()) {
-				var aliasId = (await GetGameAliasesAsync(connection, gameId))[gameId];
+				var aliasId = (await GetGameAliasesAsync(connection, serverId, gameId))[gameId];
 				var sessionId = Guid.NewGuid();
 
 				var command = connection.CreateCommand();
@@ -143,48 +148,25 @@ namespace DotemMatchmaker.Context {
 		}
 
 		private async Task<SessionDetails?> JoinSessionAsync(SqliteConnection connection, Guid sessionId, string userId, DateTimeOffset expireTime) {
-
-			var sql = $@"
-				SELECT
-					sessionId
-				FROM
-					userJoin
-				WHERE
-					sessionId = ${nameof(sessionId)}
-                    AND userID = ${nameof(userId)}
-				;";
-
-			var existingIds = await connection.QueryAsync<Guid?>(sql, new { sessionId, userId });
-
 			var command = connection.CreateCommand();
 
-			if (existingIds.Any()) {
-				command.CommandText = @"
-					UPDATE 
-						userJoin
-					SET
-						expireTime = $expireTime
-					WHERE
-						sessionId = $first
-						AND userId = $first
-				;";
-				command.Parameters.AddWithValue("$expireTime", expireTime);
-				command.Parameters.AddWithValue("$first", existingIds.First());
-				command.Parameters.AddWithValue("$userId", userId);
-			} else {
-				command.CommandText = @"
-					INSERT INTO userJoin
+			command.CommandText = @"
+				INSERT INTO userJoin
 					VALUES ($userId, $sessionId, $expireTime)
-					;";
+				ON CONFLICT (userId, sessionId) 
+				DO UPDATE SET 
+					expireTime=excluded.expireTime;
+			";
 
-				command.Parameters.AddWithValue("$sessionId", sessionId);
-				command.Parameters.AddWithValue("$userId", userId);
-				command.Parameters.AddWithValue("$expireTime", expireTime);
-			}
+			command.Parameters.AddWithValue("$sessionId", sessionId);
+			command.Parameters.AddWithValue("$userId", userId);
+			command.Parameters.AddWithValue("$expireTime", expireTime);
+
 			await command.ExecuteNonQueryAsync();
 			var sessions = await GetSessionsAsync(connection, sessionId);
 			return sessions.Single();
 		}
+
 
 		public async Task<IEnumerable<SessionDetails>> GetSessionsAsync(params Guid[] sessionIds) {
 			using (var connection = GetOpenConnection()) {
@@ -194,9 +176,9 @@ namespace DotemMatchmaker.Context {
 
 		private async Task<IEnumerable<SessionDetails>> GetSessionsAsync(SqliteConnection connection, params Guid[] sessionIds) {
 			if (sessionIds == null || !sessionIds.Any()) return Enumerable.Empty<SessionDetails>();
-			var sql = @$"{selectBase}
-					WHERE 
-						session.sessionId IN ${nameof(sessionIds)};
+			var sql = @$"{sessionSelectBase}
+				WHERE 
+					session.sessionId IN ${nameof(sessionIds)};
 				";
 
 			return await SessionQueryAsync(connection, sql, new { sessionIds });
@@ -204,7 +186,7 @@ namespace DotemMatchmaker.Context {
 
 		public async Task<IEnumerable<SessionDetails>> GetAllSessionsAsync() {
 			using (var connection = GetOpenConnection()) {
-				return await SessionQueryAsync(connection, selectBase);
+				return await SessionQueryAsync(connection, $"{sessionSelectBase};");
 			}
 		}
 
@@ -238,9 +220,9 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveGamesAsync(string userId, params string[] gameIds) {
+		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveGamesAsync(string userId, string serverId, params string[] gameIds) {
 			using (var connection = GetOpenConnection()) {
-				var aliasIds = (await GetGameAliasesAsync(connection, gameIds)).Values.Distinct();
+				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds)).Values.Distinct();
 				var sql = @$"
 					SELECT 
 						session.sessionId
@@ -250,7 +232,7 @@ namespace DotemMatchmaker.Context {
 						userJoin.sessionId = session.sessionId
 					WHERE 
 						gameId IN ${nameof(aliasIds)}
-						AND userId = ${nameof(userId)}
+						AND userId = ${nameof(userId)};
                 ";
 
 				var sessionIds = await connection.QueryAsync<Guid>(sql, new { aliasIds, userId });
@@ -295,12 +277,12 @@ namespace DotemMatchmaker.Context {
 		) {
 			var command = connection.CreateCommand();
 			command.CommandText = $@"
-					DELETE FROM userJoin
-					WHERE
-					    {(userIds != null ? $"userId IN ({string.Join(",", sessionIds.Select((_, i) => "$u" + i))}) AND" : "")}
-						sessionId IN ({string.Join(",", sessionIds.Select((_, i) => "$g" + i))});
-				";
-			if (userIds != null) command.Parameters.AddRange(userIds.Select((user, i) => new SqliteParameter("$u" + i, user)));
+				DELETE FROM userJoin
+				WHERE
+				    {(userIds != null ? $"userId IN ({string.Join(",", sessionIds.Select((_, i) => "$s" + i))}) AND" : "")}
+					sessionId IN ({string.Join(",", sessionIds.Select((_, i) => "$g" + i))});
+			";
+			if (userIds != null) command.Parameters.AddRange(userIds.Select((user, i) => new SqliteParameter("$s" + i, user)));
 			command.Parameters.AddRange(sessionIds.Select((guid, i) => new SqliteParameter("$g" + i, guid)));
 			await command.ExecuteNonQueryAsync();
 
@@ -329,9 +311,9 @@ namespace DotemMatchmaker.Context {
 				command.CommandText = $@"
 					DELETE FROM session
 					WHERE
-						sessionId IN ({string.Join(", ", stoppedSessionIds.Select((_, i) => "@p" + i))});
+						sessionId IN ({string.Join(", ", stoppedSessionIds.Select((_, i) => "$g" + i))});
 				";
-				command.Parameters.AddRange(stoppedSessionIds.Select((guid, i) => new SqliteParameter("@p" + i, guid)));
+				command.Parameters.AddRange(stoppedSessionIds.Select((guid, i) => new SqliteParameter("$g" + i, guid)));
 				await command.ExecuteNonQueryAsync();
 			}
 
@@ -361,27 +343,36 @@ namespace DotemMatchmaker.Context {
 				});
 
 		}
+		#endregion
 
-		private async Task<Dictionary<string, string>> GetGameAliasesAsync(SqliteConnection connection, params string[]? gameIds) {
+		#region Alias
+		public async Task<Dictionary<string, string>> GetGameAliasesAsync(string serverId, params string[]? gameIds) {
+			using (var connection = GetOpenConnection()) {
+				return await GetGameAliasesAsync(connection, serverId, gameIds);
+			}
+		}
+
+		private async Task<Dictionary<string, string>> GetGameAliasesAsync(SqliteConnection connection, string serverId, params string[]? gameIds) {
 			if (gameIds == null || !gameIds.Any()) return new();
 			var ids = gameIds.Select(s => s.ToLower()).Distinct();
 			var sql = $@"
 				SELECT 
 					gameId, aliasGameId
 				FROM 
-					alias
+					gameAlias
 				WHERE
-					gameId IN ${nameof(ids)};
+					serverId = $serverId
+					AND gameId IN ${nameof(ids)};
 			";
 
-			var result = await connection.QueryAsync(sql, new { ids });
+			var result = await connection.QueryAsync(sql, new { ids, serverId });
 
 			var aliasIds = result
 				?.Where(row => row?.gameId != null && row?.aliasGameId != null)
 				?.ToDictionary(
 					row => (string)row.gameId,
 					row => (string)row.aliasGameId
-				) 
+				)
 				?? new();
 
 			foreach (var id in ids) {
@@ -390,6 +381,207 @@ namespace DotemMatchmaker.Context {
 
 			return aliasIds;
 		}
+
+		public async Task<Dictionary<string, string>> GetAllGameAliasesAsync(string serverId) {
+			using (var connection = GetOpenConnection()) {
+				var sql = $@"
+					SELECT 
+						gameId, aliasGameId
+					FROM 
+						gameAlias
+					WHERE
+						serverId = $serverId;
+				";
+
+				var result = await connection.QueryAsync(sql, new { serverId });
+
+				return result
+					?.Where(row => row?.gameId != null && row?.aliasGameId != null)
+					?.ToDictionary(
+						row => (string)row.gameId,
+						row => (string)row.aliasGameId
+					)
+					?? new();
+			}
+		}
+
+		public async Task DeleteGameAliasesAsync(string serverId, params string[] gameIds) {
+			if (!gameIds.Any()) { return; }
+			using (var connection = GetOpenConnection()) {
+				var command = connection.CreateCommand();
+				command.CommandText = $@"
+					DELETE FROM 
+						gameAlias
+					WHERE
+						serverId = $serverId
+						AND gameId IN ({string.Join(",", gameIds.Select((_, i) => "$s" + i))});
+				";
+
+				command.Parameters.AddWithValue("$serverId", serverId);
+				command.Parameters.AddRange(gameIds.Select((id, i) => new SqliteParameter("$s" + i, id)));
+
+				await command.ExecuteNonQueryAsync();
+			}
+		}
+
+		public async Task<IEnumerable<SessionDetails>> AddGameAliasAsync(string serverId, string aliasGameId, params string[] gameIds) {
+			if (!gameIds.Any()) { return Enumerable.Empty<SessionDetails>(); }
+			using (var connection = GetOpenConnection()) {
+				var gameIdString = string.Join(",", gameIds.Select((_, i) => "$s" + i));
+				var command = connection.CreateCommand();
+				command.CommandText = $@"
+					INSERT INTO 
+						gameAlias
+					VALUES
+						{string.Join(",", gameIds.Select((_, i) => $"($s{i},$serverId,$aliasGameId)"))}
+					ON CONFLICT (gameId, serverId) 
+					DO UPDATE SET 
+						aliasGameId=excluded.aliasGameId;
+
+					UPDATE
+						gameAlias
+					SET
+						aliasGameId = $aliasGameId
+					WHERE 
+						serverId = $serverId
+						AND aliasGameId IN ({gameIdString});
+
+					DELETE FROM
+						gameAlias
+					WHERE
+						gameId = $aliasGameId
+						AND serverId = $serverId;
+
+					UPDATE OR IGNORE
+						gameName
+					SET
+						gameId = $aliasGameId
+					WHERE 
+						gameId IN ({string.Join(",", gameIds.Select((_, i) => "$s" + i))})
+						AND serverId = $serverId;
+				";
+
+				command.Parameters.AddRange(gameIds.Select((id, i) => new SqliteParameter("$s" + i, id)));
+				command.Parameters.AddWithValue("$serverId", serverId);
+				command.Parameters.AddWithValue("$aliasGameId", aliasGameId);
+
+				await command.ExecuteNonQueryAsync();
+
+				var sql = @"
+					SELECT
+						sessionId
+					FROM
+						session
+					WHERE
+						gameId IN $gameIds
+						AND serverId = $serverId;
+				";
+
+				var idsToUpdate = await connection.QueryAsync<Guid>(sql, new { gameIds, serverId });
+
+				if (!idsToUpdate.Any()) { return Enumerable.Empty<SessionDetails>(); }
+
+				command.Parameters.Clear();
+
+				command.CommandText = $@"
+					UPDATE session
+					SET 
+						gameId = $aliasId
+					WHERE
+						gameId IN ({string.Join(",", gameIds.Select((_, i) => "$s" + i))})
+						AND serverId = $serverId;
+				";
+
+				command.Parameters.AddRange(gameIds.Select((id, i) => new SqliteParameter("$s" + i, id)));
+				command.Parameters.AddWithValue("$serverId", serverId);
+
+				await command.ExecuteNonQueryAsync();
+
+				return await GetSessionsAsync(idsToUpdate.ToArray());
+			}
+		}
+		#endregion
+
+		#region FullName
+		public async Task<Dictionary<string, string>> GetGameNamesAsync(string serverId, params string[]? gameIds) {
+			using (var connection = GetOpenConnection()) {
+				if (gameIds == null || !gameIds.Any()) return new();
+				var ids = gameIds.Select(s => s.ToLower()).Distinct();
+				var sql = $@"
+					SELECT 
+						gameId, name
+					FROM 
+						gameName
+					WHERE
+						serverId = $serverId
+						AND gameId IN ${nameof(ids)};
+				";
+
+				var result = await connection.QueryAsync(sql, new { ids, serverId });
+
+				return result
+					?.Where(row => row?.gameId != null && row?.aliasGameId != null)
+					?.ToDictionary(
+						row => (string)row.gameId,
+						row => (string)row.aliasGameId
+					)
+					?? new();
+			}
+		}
+
+		public async Task<Dictionary<string, string>> GetAllGameNamesAsync(string serverId) {
+			using (var connection = GetOpenConnection()) {
+				var sql = $@"
+					SELECT 
+						gameId, name
+					FROM 
+						gameName
+					WHERE
+						serverId = $serverId;
+				";
+
+				var result = await connection.QueryAsync(sql, new { serverId });
+
+				return result
+					?.Where(row => row?.gameId != null && row?.name != null)
+					?.ToDictionary(
+						row => (string)row.gameId,
+						row => (string)row.name
+					)
+					?? new();
+			}
+		}
+
+		public async Task<IEnumerable<SessionDetails>> AddGameNameAsync(string serverId, string name, string gameId) {
+			using (var connection = GetOpenConnection()) {
+				var command = connection.CreateCommand();
+				command.CommandText = @"
+					INSERT INTO 
+						gameName
+					VALUES
+						($gameId,$serverId,$name)
+					ON CONFLICT (gameId, serverId) 
+					DO UPDATE SET 
+						aliasGameId=excluded.aliasGameId;
+				";
+
+				command.Parameters.AddWithValue("$gameId", gameId);
+				command.Parameters.AddWithValue("$serverId", serverId);
+				command.Parameters.AddWithValue("$name", name);
+
+				await command.ExecuteNonQueryAsync();
+
+				var sql = $@"{sessionSelectBase}
+					WHERE
+						gameId = $gameId
+						AND serverId = $serverId;
+				";
+
+				return await SessionQueryAsync(connection, sql, new { gameId, serverId });
+			}
+		}
+
+		#endregion
 
 		private SqliteConnection GetOpenConnection() {
 			var connection = new SqliteConnection($"Data Source={DataSource}");

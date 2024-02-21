@@ -76,16 +76,7 @@ namespace DotemDiscord.Utils {
 
 			var ids = playerIds.ToArray();
 
-			var mentions = $"<@{ids[0]}>";
-
-
-			if (ids.Length > 1) {
-				for (int i = 1; i < ids.Length - 1; ++i) {
-					mentions += $", <@{ids[i]}>";
-				}
-
-				mentions += $" and <@{ids[ids.Length - 1]}>";
-			}
+			var mentions = GetNaturalLanguageString(ids.Select(s => $"<@{s}>").ToArray());
 
 			return (
 				content: $"Match found! {mentions} on {gameName}{(description != null
@@ -97,14 +88,7 @@ namespace DotemDiscord.Utils {
 
 		public static (string? content, MessageComponent? components) GetStoppedStructure(params string[] gameNames) {
 			if (!gameNames.Any()) return ("No longer searching.", null);
-			var gameString = gameNames[0];
-			if (gameNames.Length >= 2) {
-				for (int i = 1; i < gameNames.Length - 1; ++i) {
-					gameString += $", {gameNames[i]}";
-				}
-				gameString += $" and {gameNames[gameNames.Length - 1]}";
-			}
-			return ($"No longer searching for {gameString}.", null);
+			return ($"No longer searching for {GetNaturalLanguageString(gameNames)}.", null);
 		}
 
 		public static (string? content, MessageComponent? components) GetCanceledStructure() {
@@ -126,5 +110,16 @@ namespace DotemDiscord.Utils {
 			return ("Failed to join.", null);
 		}
 
+		public static string GetNaturalLanguageString(string[] strings) {
+			var natural = strings.FirstOrDefault();
+			if (strings.Length > 1) {
+				for (int i = 1; i < strings.Length - 1; ++i) {
+					natural += $", {strings[i]}";
+				}
+
+				natural += $" and {strings[strings.Length - 1]}";
+			}
+			return natural ?? "";
+		}
 	}
 }
