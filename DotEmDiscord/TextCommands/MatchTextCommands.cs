@@ -107,7 +107,6 @@ namespace DotemDiscord.TextCommands {
 		}
 
 		[Command("mc", RunMode = RunMode.Async)]
-		[Alias("c")]
 		public async Task CancelMatchTextCommandAsync(params string[] gameIds) {
 			try {
 				if (Context.Guild == null) {

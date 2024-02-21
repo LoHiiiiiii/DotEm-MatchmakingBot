@@ -70,7 +70,7 @@ namespace DotemDiscord.ButtonMessages {
 				}
 
 				if (!Guid.TryParse(component.Data.CustomId, out var guid)) { return; }
-				if (!JoinableSessions.TryGetValue(guid, out var _)) { return; }
+				if (!JoinableSessions.ContainsKey(guid)) { return; }
 
 				var result = await _matchmaker.TryJoinSessionAsync(CreatorId.ToString(), guid, DurationMinutes);
 				if (result is not SessionResult.Waiting
@@ -118,7 +118,7 @@ namespace DotemDiscord.ButtonMessages {
 			});
 		}
 
-		private async void HandleSessionChanged(IEnumerable<SessionDetails> _, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+		private async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
 			if (!updated.Any() && !stopped.Any()) { return; }
 
 			await MessageSemaphore.WaitAsync();

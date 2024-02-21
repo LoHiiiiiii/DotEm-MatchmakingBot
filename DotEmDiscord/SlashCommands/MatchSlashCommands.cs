@@ -20,13 +20,10 @@ namespace DotemDiscord.SlashCommands {
 			_buttonMessageHandler = buttonMessageHandler;
 		}
 
+		[EnabledInDm(false)]
 		[SlashCommand("match", "Searches for match in games for a certain period of time")]
 		public async Task SearchMatchSlashCommandAsync(string? gameIds = null, int? time = null, int? maxPlayerCount = null, string? description = null) {
 			try {
-				if (Context.Guild == null) {
-					await RespondAsync("This command cannot be used in a direct message!");
-					return;
-				}
 				await DeferAsync();
 				var idArray = gameIds?.Split(' ') ?? [];
 
@@ -97,13 +94,10 @@ namespace DotemDiscord.SlashCommands {
 			}
 		}
 
+		[EnabledInDm(false)]
 		[SlashCommand("cancel-matches-mc", "Cancels all or specific searches you are in")]
 		public async Task CancelMatchSlashCommandAsync(string? gameIds = null) {
 			try {
-				if (Context.Guild == null) {
-					await RespondAsync("This command cannot be used in a direct message!");
-					return;
-				}
 				await DeferAsync(ephemeral: true);
 				var serverId = Context.Guild.Id.ToString();
 				var userId = Context.User.Id.ToString();

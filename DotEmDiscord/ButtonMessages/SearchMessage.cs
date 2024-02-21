@@ -131,7 +131,7 @@ namespace DotemDiscord.ButtonMessages {
 			} finally { messageSemaphore.Release(); }
 		}
 
-		private async void HandleSessionChanged(IEnumerable<SessionDetails> _, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+		private async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
 			if (!updated.Any() && !stopped.Any()) { return; }
 
 			await messageSemaphore.WaitAsync();
