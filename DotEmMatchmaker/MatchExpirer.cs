@@ -6,7 +6,7 @@ namespace DotemMatchmaker {
 		private readonly Matchmaker _matchmaker;
 
 		private List<DateTimeOffset> Expirations { get; set; } = new();
-		private DateTimeOffset? FirstExpiration { get; set; } = new();
+		private DateTimeOffset? FirstExpiration { get; set; }
 		private CancellationTokenSource? ExpirationSource { get; set; }
 
 		private SemaphoreSlim expirationSemaphore = new SemaphoreSlim(1, 1);
@@ -35,6 +35,7 @@ namespace DotemMatchmaker {
 
 		private async Task TryClearExpiredsAsync() {
 			bool handleTask = false;
+			
 			await expirationSemaphore.WaitAsync();
 			try {
 				if (!Expirations.Any()) { return; }
@@ -56,7 +57,6 @@ namespace DotemMatchmaker {
 			}
 		}
 
-
 		private async void HandleExpirationTask() {
 			await expirationSemaphore.WaitAsync();
 			bool clearExpireds = false;
@@ -72,7 +72,7 @@ namespace DotemMatchmaker {
 					return;
 				}
 
-				if (FirstExpiration <= DateTime.Now) {
+				if (Expirations.First() <= DateTime.Now) {
 					clearExpireds = true;
 					return;
 				}
