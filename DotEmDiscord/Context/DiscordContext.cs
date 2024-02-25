@@ -14,7 +14,6 @@ namespace DotemDiscord.Context {
 
 		public void Initialize() {
 			SqlMapper.AddTypeHandler(new GuidHandler());
-			//SqlMapper.AddTypeHandler(new DateTimeOffsetHandler());
 			EnsureDatabaseCreated();
 		}
 

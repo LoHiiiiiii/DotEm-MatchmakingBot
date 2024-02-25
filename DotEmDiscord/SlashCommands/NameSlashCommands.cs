@@ -3,7 +3,6 @@ using Discord.WebSocket;
 using DotemDiscord.Utils;
 using Discord;
 using DotemMatchmaker;
-using System.Linq;
 
 namespace DotemDiscord.SlashCommands {
 	public class NameSlashCommands : InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>> {

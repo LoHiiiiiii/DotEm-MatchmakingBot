@@ -35,9 +35,9 @@ namespace DotemDiscord
 			var collection = new ServiceCollection()
 				.AddSingleton<MatchmakingContext>()
 				.AddSingleton<DiscordContext>()
+				.AddSingleton<ExtensionContext>()
 				.AddSingleton<Matchmaker>()
 				.AddSingleton<MatchExpirer>()
-				.AddSingleton<ExtensionContext>()
                 .AddSingleton(clientConfig)
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton<CommandServiceConfig>()
@@ -67,6 +67,7 @@ namespace DotemDiscord
 			client.Ready += async () => {
 				_serviceProvider.GetRequiredService<DiscordContext>().Initialize();
 				_serviceProvider.GetRequiredService<MatchmakingContext>().Initialize();
+				_serviceProvider.GetRequiredService<ExtensionContext>().Initialize();
 				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync();
                 await _serviceProvider.GetRequiredService<MatchExpirer>().StartClearingExpiredJoins();
 				var slashCommandHandler = _serviceProvider.GetRequiredService<SlashCommandHandler>();

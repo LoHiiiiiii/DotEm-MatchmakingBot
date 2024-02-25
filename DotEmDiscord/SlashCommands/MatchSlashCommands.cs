@@ -11,12 +11,12 @@ namespace DotemDiscord.SlashCommands {
 	public class MatchSlashCommands : InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>> {
 
 		private readonly Matchmaker _matchmaker;
-		private readonly ExtensionContext _chatContext;
+		private readonly ExtensionContext _extensionContext;
 		private readonly ButtonMessageHandler _buttonMessageHandler;
 
-		public MatchSlashCommands(Matchmaker matchmaker, ExtensionContext chatContext, ButtonMessageHandler buttonMessageHandler) {
+		public MatchSlashCommands(Matchmaker matchmaker, ExtensionContext extensionContext, ButtonMessageHandler buttonMessageHandler) {
 			_matchmaker = matchmaker;
-			_chatContext = chatContext;
+			_extensionContext = extensionContext;
 			_buttonMessageHandler = buttonMessageHandler;
 		}
 
@@ -27,12 +27,12 @@ namespace DotemDiscord.SlashCommands {
 				await DeferAsync();
 				var idArray = gameIds?.Split(' ') ?? [];
 
-				var channelDefaults = _chatContext.GetChannelDefaultSearchParamaters(Context.Channel.ToString() ?? "");
+				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString() ?? "");
 
 				var result = await _matchmaker.SearchSessionAsync(
 					serverId: Context.Guild.Id.ToString(),
 					userId: Context.User.Id.ToString(),
-					gameIds: idArray ?? channelDefaults.gameIds,
+					gameIds: idArray.Any() ? idArray : channelDefaults.gameIds,
 					joinDuration: time ?? channelDefaults.duration,
 					maxPlayerCount: maxPlayerCount ?? channelDefaults.maxPlayerCount,
 					description: description

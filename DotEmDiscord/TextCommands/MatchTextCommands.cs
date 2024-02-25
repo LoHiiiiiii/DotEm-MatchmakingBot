@@ -32,12 +32,12 @@ namespace DotemDiscord.TextCommands {
 
 				(var gameIds, var time, var maxPlayerCount, var description) = ParseCommand(commands);
 
-				var channelDefaults = _chatContext.GetChannelDefaultSearchParamaters(Context.Channel.ToString() ?? "");
+				var channelDefaults = await _chatContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString() ?? "");
 
 				var result = await _matchmaker.SearchSessionAsync(
 					serverId: Context.Guild.Id.ToString(),
 					userId: Context.User.Id.ToString(),
-					gameIds: gameIds ?? channelDefaults.gameIds,
+					gameIds: gameIds.Any() ? gameIds : channelDefaults.gameIds,
 					joinDuration: time ?? channelDefaults.duration,
 					maxPlayerCount: maxPlayerCount ?? channelDefaults.maxPlayerCount,
 					description: description
