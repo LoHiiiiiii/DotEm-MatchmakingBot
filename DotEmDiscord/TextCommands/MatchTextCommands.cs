@@ -10,12 +10,12 @@ namespace DotemDiscord.TextCommands {
 	public class MatchTextCommands : ModuleBase<SocketCommandContext> {
 
 		private readonly Matchmaker _matchmaker;
-		private readonly ExtensionContext _chatContext;
+		private readonly ExtensionContext _extensionContext;
 		private readonly ButtonMessageHandler _buttonMessageHandler;
 
-		public MatchTextCommands(Matchmaker matchmaker, ExtensionContext chatContext, ButtonMessageHandler buttonMessageHandler) {
+		public MatchTextCommands(Matchmaker matchmaker, ExtensionContext extensionContext, ButtonMessageHandler buttonMessageHandler) {
 			_matchmaker = matchmaker;
-			_chatContext = chatContext;
+			_extensionContext = extensionContext;
 			_buttonMessageHandler = buttonMessageHandler;
 		}
 
@@ -32,78 +32,141 @@ namespace DotemDiscord.TextCommands {
 
 				(var gameIds, var time, var maxPlayerCount, var description) = ParseCommand(commands);
 
-				var channelDefaults = await _chatContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString() ?? "");
+				if (gameIds.Any()) {
+					await _extensionContext.SetUserRematchParameters(
+						serverId: Context.Guild.Id.ToString(),
+						userId: Context.User.Id.ToString(),
+						gameIds: string.Join(" ", gameIds),
+						maxPlayerCount: maxPlayerCount,
+						duration: time,
+						description: description
+					);
+				}
 
-				var result = await _matchmaker.SearchSessionAsync(
-					serverId: Context.Guild.Id.ToString(),
-					userId: Context.User.Id.ToString(),
+				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString());
+
+				await HandleSearchAsync(
 					gameIds: gameIds.Any() ? gameIds : channelDefaults.gameIds,
-					joinDuration: time ?? channelDefaults.duration,
+					duration: time ?? channelDefaults.duration,
 					maxPlayerCount: maxPlayerCount ?? channelDefaults.maxPlayerCount,
 					description: description
-				);
-
-
-				var structure = MessageStructures.GetNoSearchStructure(); 
-				IUserMessage? responseMessage = null;
-
-				while (result is SessionResult.Suggestions suggestions) {
-					if (responseMessage == null) {
-						var inputStructure = MessageStructures.GetSuggestionsWaitStructure();
-						responseMessage = await Context.Message.ReplyAsync(
-							text: inputStructure.content,
-							components: inputStructure.components,
-							allowedMentions: AllowedMentions.None
-						);
-					}
-
-					result = await _buttonMessageHandler.GetSuggestionResultAsync(
-						user: Context.User,
-						joinableSessions: suggestions.suggestedSessions,
-						durationMinutes: time ?? _matchmaker.DefaultJoinDurationMinutes,
-						searchParams: suggestions.allowWait
-							? (gameIds: gameIds,
-								description,
-								maxPlayerCount)
-							: null
-					);
-				}
-				if (result is SessionResult.Matched matched) {
-					structure = MessageStructures.GetMatchedStructure(
-						matched.matchedSession.GameId, 
-						matched.matchedSession.UserExpires.Keys, 
-						matched.matchedSession.Description);
-				}
-
-				if (result is SessionResult.Waiting waiting) {
-					structure = MessageStructures.GetWaitingStructure(waiting.waits, Context.User.Id);
-					var message = await Context.Message.ReplyAsync(
-						text: structure.content,
-						components: structure.components,
-						allowedMentions: AllowedMentions.None
-					);
-					await _buttonMessageHandler.CreateSearchMessageAsync(message, waiting.waits, Context.User.Id);
-					return;
-				}
-
-				if (responseMessage != null) {
-					try {
-						await responseMessage.DeleteAsync();
-					} catch { }
-				}
-
-				await Context.Message.ReplyAsync(
-					text: structure.content,
-					components: structure.components,
-					allowedMentions: result is SessionResult.Matched
-						? null
-						: AllowedMentions.None
 				);
 			} catch (Exception e) {
 				Console.WriteLine(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}
+		}
+
+		[Command("r", RunMode = RunMode.Async)]
+		public async Task RematchTextCommandAsync() {
+			try {
+				if (Context.Guild == null) {
+					await Context.Message.ReplyAsync(
+						text: "This command cannot be used in a direct message!",
+						allowedMentions: AllowedMentions.None
+					);
+					return;
+				}
+
+				var result = (await _extensionContext.GetUserRematchParameters(
+					Context.Guild.Id.ToString(),
+					Context.User.Id.ToString()
+				));
+
+				if (!result.HasValue) {
+					await Context.Message.ReplyAsync(
+						text: "No previous search stored.",
+						allowedMentions: AllowedMentions.None
+					);
+					return;
+				}
+
+				await HandleSearchAsync(
+					gameIds: result.Value.gameIds,
+					duration: result.Value.duration,
+					maxPlayerCount: result.Value.maxPlayerCount,
+					description: result.Value.description
+				);
+			} catch (Exception e) {
+				Console.WriteLine(e);
+				if (e is TimeoutException) return;
+				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
+			}
+		}
+
+		private async Task HandleSearchAsync(
+			string[] gameIds,
+			int? duration,
+			int? maxPlayerCount,
+			string? description
+		) {
+
+			var result = await _matchmaker.SearchSessionAsync(
+				serverId: Context.Guild.Id.ToString(),
+				userId: Context.User.Id.ToString(),
+				gameIds: gameIds,
+				joinDuration: duration,
+				maxPlayerCount: maxPlayerCount,
+				description: description
+			);
+
+			var structure = MessageStructures.GetNoSearchStructure();
+			IUserMessage? responseMessage = null;
+
+			while (result is SessionResult.Suggestions suggestions) {
+				if (responseMessage == null) {
+					var inputStructure = MessageStructures.GetSuggestionsWaitStructure();
+					responseMessage = await Context.Message.ReplyAsync(
+						text: inputStructure.content,
+						components: inputStructure.components,
+						allowedMentions: AllowedMentions.None
+					);
+				}
+
+				result = await _buttonMessageHandler.GetSuggestionResultAsync(
+					user: Context.User,
+					joinableSessions: suggestions.suggestedSessions,
+					durationMinutes: duration ?? _matchmaker.DefaultJoinDurationMinutes,
+					searchParams: suggestions.allowWait
+						? (gameIds: gameIds,
+							description,
+							maxPlayerCount)
+						: null
+				);
+			}
+
+			if (responseMessage != null) {
+				try {
+					await responseMessage.DeleteAsync();
+				} catch { }
+			}
+
+			if (result is SessionResult.Matched matched) {
+				structure = MessageStructures.GetMatchedStructure(
+					matched.matchedSession.GameId,
+					matched.matchedSession.UserExpires.Keys,
+					matched.matchedSession.Description);
+			}
+
+			if (result is SessionResult.Waiting waiting) {
+				structure = MessageStructures.GetWaitingStructure(waiting.waits, Context.User.Id);
+				var message = await Context.Message.ReplyAsync(
+					text: structure.content,
+					components: structure.components,
+					allowedMentions: AllowedMentions.None
+				);
+				await _buttonMessageHandler.CreateSearchMessageAsync(message, waiting.waits, Context.User.Id);
+				return;
+			}
+
+			await Context.Message.ReplyAsync(
+				text: structure.content,
+				components: structure.components,
+				allowedMentions: result is SessionResult.Matched
+					? null
+					: AllowedMentions.None
+			);
 		}
 
 		[Command("mc", RunMode = RunMode.Async)]
@@ -193,7 +256,7 @@ namespace DotemDiscord.TextCommands {
 			}
 
 			return (
-				gameIds: games.ToArray(),
+				gameIds: games?.ToArray() ?? [],
 				time: times.Any()
 					 ? times.Max()
 					: null,

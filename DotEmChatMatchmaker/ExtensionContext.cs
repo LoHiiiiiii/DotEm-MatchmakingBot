@@ -27,6 +27,16 @@ namespace DotemChatMatchmaker
 						duration INT,
 						description TEXT
 					);
+
+					CREATE TABLE IF NOT EXISTS userRematch (
+						serverId TEXT NOT NULL,
+						userId TEXT NOT NULL,
+						gameIds TEXT NOT NULL,
+						maxPlayerCount INT,
+						duration INT,
+						description TEXT,
+                        UNIQUE(serverId, userId)
+					);
 				";
 				command.ExecuteNonQuery();
 			}
@@ -63,7 +73,7 @@ namespace DotemChatMatchmaker
 			}
 		}
 
-		public async Task AddChannelDefaultParameters(string channelId, string gameIds, int? maxPlayerCount, int? duration, string? description) {
+		public async Task SetChannelDefaultParameters(string channelId, string gameIds, int? maxPlayerCount, int? duration, string? description) {
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();
 				command.CommandText = @"
@@ -99,6 +109,64 @@ namespace DotemChatMatchmaker
 				";
 
 				command.Parameters.AddWithValue("$channelId", channelId);
+
+				await command.ExecuteNonQueryAsync();
+			}
+		}
+		#endregion
+
+		#region Rematch
+
+		public async Task<(string[] gameIds, int? maxPlayerCount, int? duration, string? description)?> GetUserRematchParameters(string serverId, string userId) {
+			using (var connection = GetOpenConnection()) {
+
+				var sql = @"
+					SELECT
+						gameIds,
+						maxPlayerCount,
+						duration,
+						description
+					FROM
+						userRematch
+					WHERE
+						serverId = $serverId
+						AND userId = $userId;
+				";
+
+				var result = await connection.QueryAsync(sql, new { serverId, userId });
+
+				if (!result.Any()) { return null; }
+
+				return result.Select(row => (
+					((string?)row.gameIds)?.Split(" ") ?? [],
+					(int?)row.maxPlayerCount,
+					(int?)row.duration,
+					(string?)row.description
+				)).Single();
+			}
+		}
+
+		public async Task SetUserRematchParameters(string serverId, string userId, string gameIds, int? maxPlayerCount, int? duration, string? description) {
+			using (var connection = GetOpenConnection()) {
+				var command = connection.CreateCommand();
+				command.CommandText = @"
+					INSERT INTO
+						userRematch
+					VALUES ($serverId, $userId, $gameIds, $maxPlayerCount, $duration, $description)
+					ON CONFLICT (serverId, userId)
+					DO UPDATE SET 
+						gameIds = excluded.gameIds,
+						maxPlayerCount = excluded.maxPlayerCount,
+						duration = excluded.duration,
+						description = excluded.description;
+				";
+
+				command.Parameters.AddWithValue("$serverId", serverId);
+				command.Parameters.AddWithValue("$userId", userId);
+				command.Parameters.AddWithValue("$gameIds", gameIds);
+				command.Parameters.AddWithValue("$maxPlayerCount", maxPlayerCount == null ? DBNull.Value : maxPlayerCount);
+				command.Parameters.AddWithValue("$duration", duration == null ? DBNull.Value : duration);
+				command.Parameters.AddWithValue("$description", description == null ? DBNull.Value : description);
 
 				await command.ExecuteNonQueryAsync();
 			}

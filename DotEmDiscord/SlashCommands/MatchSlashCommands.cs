@@ -25,73 +25,149 @@ namespace DotemDiscord.SlashCommands {
 		public async Task SearchMatchSlashCommandAsync(string? gameIds = null, int? time = null, int? maxPlayerCount = null, string? description = null) {
 			try {
 				await DeferAsync();
+
+				if (gameIds != null) {
+					await _extensionContext.SetUserRematchParameters(
+						serverId: Context.Guild.Id.ToString(),
+						userId: Context.User.Id.ToString(),
+						gameIds: gameIds,
+						maxPlayerCount: maxPlayerCount,
+						duration: time,
+						description: description
+					);
+				}
+
 				var idArray = gameIds?.Split(' ') ?? [];
 
-				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString() ?? "");
+				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString());
+				IUserMessage message = await GetOriginalResponseAsync();
 
-				var result = await _matchmaker.SearchSessionAsync(
-					serverId: Context.Guild.Id.ToString(),
-					userId: Context.User.Id.ToString(),
+				(var waitedForInput, var content, var components) = await HandleSearchAsync(
+					message: message,
 					gameIds: idArray.Any() ? idArray : channelDefaults.gameIds,
-					joinDuration: time ?? channelDefaults.duration,
+					duration: time ?? channelDefaults.duration,
 					maxPlayerCount: maxPlayerCount ?? channelDefaults.maxPlayerCount,
 					description: description
 				);
 
-				IUserMessage message = await GetOriginalResponseAsync();
-				var structure = MessageStructures.GetNoSearchStructure();
-				var waitedForInput = false;
-
-				while (result is SessionResult.Suggestions suggestions) {
-					if (!waitedForInput) {
-						var inputStructure = MessageStructures.GetSuggestionsWaitStructure();
-						await ModifyOriginalResponseAsync(x => {
-							x.Content = inputStructure.content;
-							x.Components = inputStructure.components;
-						});
-						waitedForInput = true;
-					}
-
-					result = await _buttonMessageHandler.GetSuggestionResultAsync(
-						interaction: Context.Interaction,
-						joinableSessions: suggestions.suggestedSessions,
-							durationMinutes: time ?? _matchmaker.DefaultJoinDurationMinutes,
-							searchParams: suggestions.allowWait
-								? (gameIds: idArray,
-									description: description,
-									playerCount: maxPlayerCount)
-								: null
-					);
-				}
-
-				if (result is SessionResult.Matched matched) {
-					structure = MessageStructures.GetMatchedStructure(
-						matched.matchedSession.GameId, 
-						matched.matchedSession.UserExpires.Keys, 
-						matched.matchedSession.Description);
-				}
-
-				if (result is SessionResult.Waiting waiting) {
-					await _buttonMessageHandler.CreateSearchMessageAsync(message, waiting.waits, Context.User.Id);
-					structure = MessageStructures.GetWaitingStructure(waiting.waits, Context.User.Id);
-				}
-
 				if (waitedForInput) {
 					await FollowupAsync(
-						text: structure.content,
-						components: structure.components
+						text: content,
+						components: components
 					);
 					return;
 				}
 				await ModifyOriginalResponseAsync(x => {
-					x.Content = structure.content;
-					x.Components = structure.components;
+					x.Content = content;
+					x.Components = components;
 				});
 			} catch (Exception e) {
 				Console.WriteLine(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
+		}
+
+		[EnabledInDm(false)]
+		[SlashCommand("rematch", "Uses your previous search in this server again.")]
+		public async Task RematchSlashCommandAsync() {
+			try {
+				await DeferAsync();
+
+				var result = (await _extensionContext.GetUserRematchParameters(
+					Context.Guild.Id.ToString(),
+					Context.User.Id.ToString()
+				));
+
+				if (!result.HasValue) {
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = "No previous search stored.";
+					});
+					return;
+				}
+
+				IUserMessage message = await GetOriginalResponseAsync();
+
+				(var waitedForInput, var content, var components) = await HandleSearchAsync(
+					message: message,
+					gameIds: result.Value.gameIds,
+					duration: result.Value.duration,
+					maxPlayerCount: result.Value.maxPlayerCount,
+					description: result.Value.description
+				);
+
+				if (waitedForInput) {
+					await FollowupAsync(
+						text: content,
+						components: components
+					);
+					return;
+				}
+				await ModifyOriginalResponseAsync(x => {
+					x.Content = content;
+					x.Components = components;
+				});
+			} catch (Exception e) {
+				Console.WriteLine(e);
+				if (e is TimeoutException) return;
+				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
+			}
+		}
+
+		private async Task<(bool waitedForInput, string? content, MessageComponent? components)> HandleSearchAsync(
+			IUserMessage message,
+			string[] gameIds, 
+			int? duration, 
+			int? maxPlayerCount, 
+			string? description
+		) {
+
+			var result = await _matchmaker.SearchSessionAsync(
+				serverId: Context.Guild.Id.ToString(),
+				userId: Context.User.Id.ToString(),
+				gameIds: gameIds,
+				joinDuration: duration,
+				maxPlayerCount: maxPlayerCount,
+				description: description
+			);
+
+			var structure = MessageStructures.GetNoSearchStructure();
+			var waitedForInput = false;
+
+			while (result is SessionResult.Suggestions suggestions) {
+				if (!waitedForInput) {
+					var inputStructure = MessageStructures.GetSuggestionsWaitStructure();
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = inputStructure.content;
+						x.Components = inputStructure.components;
+					});
+					waitedForInput = true;
+				}
+
+				result = await _buttonMessageHandler.GetSuggestionResultAsync(
+					interaction: Context.Interaction,
+					joinableSessions: suggestions.suggestedSessions,
+						durationMinutes: duration ?? _matchmaker.DefaultJoinDurationMinutes,
+						searchParams: suggestions.allowWait
+							? ( gameIds: gameIds,
+								description: description,
+								playerCount: maxPlayerCount)
+							: null
+				);
+			}
+
+			if (result is SessionResult.Matched matched) {
+				structure = MessageStructures.GetMatchedStructure(
+					matched.matchedSession.GameId,
+					matched.matchedSession.UserExpires.Keys,
+					matched.matchedSession.Description);
+			}
+
+			if (result is SessionResult.Waiting waiting) {
+				await _buttonMessageHandler.CreateSearchMessageAsync(message, waiting.waits, Context.User.Id);
+				structure = MessageStructures.GetWaitingStructure(waiting.waits, Context.User.Id);
+			}
+			return (waitedForInput, structure.content, structure.components);
 		}
 
 		[EnabledInDm(false)]

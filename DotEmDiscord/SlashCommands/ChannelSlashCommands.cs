@@ -20,7 +20,7 @@ namespace DotemDiscord.SlashCommands {
 			try {
 				await DeferAsync();
 
-				await _extensionContext.AddChannelDefaultParameters(
+				await _extensionContext.SetChannelDefaultParameters(
 					Context.Channel.Id.ToString(),
 					gameIds: gameIds,
 					maxPlayerCount: maxPlayerCount,
