@@ -17,7 +17,6 @@ namespace DotemDiscord.ButtonMessages {
 		public Dictionary<Guid, SessionDetails> Searches { get; }
 		public ulong CreatorId { get; }
 
-
 		private SemaphoreSlim messageSemaphore = new SemaphoreSlim(1, 1);
 		private bool released;
 
@@ -125,6 +124,7 @@ namespace DotemDiscord.ButtonMessages {
 
 		private async Task HandleMessageDeleted(Cacheable<IMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel) {
 			if (message.Id != Message.Id) { return; }
+
 			await messageSemaphore.WaitAsync();
 			try {
 				await ReleaseAsync();

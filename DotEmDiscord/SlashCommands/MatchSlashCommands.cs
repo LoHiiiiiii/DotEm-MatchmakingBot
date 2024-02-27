@@ -42,11 +42,13 @@ namespace DotemDiscord.SlashCommands {
 				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString());
 				IUserMessage message = await GetOriginalResponseAsync();
 
+				var customParams = idArray.Any();
+
 				(var waitedForInput, var content, var components) = await HandleSearchAsync(
 					message: message,
-					gameIds: idArray.Any() ? idArray : channelDefaults.gameIds,
-					duration: time ?? channelDefaults.duration,
-					maxPlayerCount: maxPlayerCount ?? channelDefaults.maxPlayerCount,
+					gameIds: customParams ? idArray : channelDefaults.gameIds,
+					duration: customParams ? time : channelDefaults.duration,
+					maxPlayerCount: customParams ? maxPlayerCount : channelDefaults.maxPlayerCount,
 					description: description
 				);
 
@@ -57,6 +59,7 @@ namespace DotemDiscord.SlashCommands {
 					);
 					return;
 				}
+
 				await ModifyOriginalResponseAsync(x => {
 					x.Content = content;
 					x.Components = components;

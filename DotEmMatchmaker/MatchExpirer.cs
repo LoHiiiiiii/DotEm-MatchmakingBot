@@ -88,7 +88,10 @@ namespace DotemMatchmaker {
 				}
 			}
 
-			await Task.Delay(Expirations.First() - DateTimeOffset.Now, token);
+			try {
+				await Task.Delay(Expirations.First() - DateTimeOffset.Now, token);
+			} catch (OperationCanceledException) { return; }
+
 			if (token.IsCancellationRequested) {
 				return;
 			}

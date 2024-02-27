@@ -57,7 +57,7 @@ namespace DotemDiscord.Context {
 			}
 		}
 
-		public async Task<IEnumerable<SessionConnection>> GetSessionConenctionsAsync() {
+		public async Task<IEnumerable<SessionConnection>> GetSessionConnectionsAsync() {
 			using (var connection = GetOpenConnection()) {
 				var sql = @$"
 					SELECT *

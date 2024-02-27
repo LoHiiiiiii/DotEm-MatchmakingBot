@@ -55,7 +55,10 @@ namespace DotemDiscord.Handlers {
 			var cts = new CancellationTokenSource();
 			cts.CancelAfter(timeOutMinutes * 60 * 1000);
 
-			await suggestion.SuggestionSignal.WaitAsync(cts.Token);
+			try {
+				await suggestion.SuggestionSignal.WaitAsync(cts.Token);
+			} catch (OperationCanceledException) { }
+
 			return suggestion.ExitResult ?? new SessionResult.NoAction();
 		}
 
@@ -105,12 +108,13 @@ namespace DotemDiscord.Handlers {
 		}
 
 		public async Task CreatePreExistingSearchMessagesAsync() {
-			var connections = await _discordContext.GetSessionConenctionsAsync();
+			var connections = await _discordContext.GetSessionConnectionsAsync();
 
 			if (connections == null || !connections.Any()) { return; }
 
 			var channels = connections
 				.Select(c => c.ChannelId)
+				.Distinct()
 				.ToDictionary(id => id, id => (IMessageChannel?)_client.GetChannel(id));
 
 			var messageTasks = connections
@@ -122,13 +126,14 @@ namespace DotemDiscord.Handlers {
 						: pair.channel.GetMessageAsync(pair.messageId)
 				);
 
-			if (messageTasks == null) { return; }
+			if (messageTasks == null || !messageTasks.Any()) { return; }
 
-			var activeSessions = (await _matchmaker.GetSessionsAsync(connections.SelectMany(c => c.SessionIds).ToArray()))
+			var activeSessions = (await _matchmaker.GetSessionsAsync(connections.SelectMany(c => c.SessionIds).Distinct().ToArray()))
 				.ToDictionary(s => s.SessionId, s => s);
 
 			var sessions = connections
 				.SelectMany(c => c.SessionIds)
+				.Distinct()
 				.ToDictionary(id => id, id => activeSessions?.GetValueOrDefault(id));
 
 			foreach (var connection in connections) {
@@ -144,8 +149,7 @@ namespace DotemDiscord.Handlers {
 					.Select(s => s!);
 
 				var nonExistingSessions = connection.SessionIds
-					.Where(id => sessions.GetValueOrDefault(id) == null)
-					.ToArray();
+					.Where(id => sessions.GetValueOrDefault(id) == null);
 
 				if (nonExistingSessions.Any()) {
 					await _discordContext.DeleteSessionConnectionAsync(connection.MessageId, nonExistingSessions.ToArray());

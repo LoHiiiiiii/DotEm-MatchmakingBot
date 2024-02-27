@@ -22,7 +22,7 @@ namespace DotemDiscord.ButtonMessages {
 		public int? DurationMinutes { get; } //Outside of search params because full session might have someone left once accepted
 		public (string[]? gameIds, string? description, int? playerCount)? SearchParams { get; }
 		public SemaphoreSlim SuggestionSignal { get; } = new SemaphoreSlim(0, 1);
-		public SemaphoreSlim MessageSemaphore { get; } = new SemaphoreSlim(0, 1);// To handle creating before accepting calls
+		public SemaphoreSlim MessageSemaphore { get; } = new SemaphoreSlim(0, 1); // To handle creating before accepting calls
 		public SessionResult? ExitResult { get; private set; } = null;
 		public bool Released { get; private set; }
 
@@ -139,8 +139,8 @@ namespace DotemDiscord.ButtonMessages {
 		}
 
 		private async Task HandleMessageDeleted(Cacheable<IMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel) {
-
 			if (message.Id != Message.Id) { return; }
+			
 			await MessageSemaphore.WaitAsync();
 			try {
 				Release();

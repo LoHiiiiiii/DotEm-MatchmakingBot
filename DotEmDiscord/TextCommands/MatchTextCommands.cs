@@ -32,7 +32,9 @@ namespace DotemDiscord.TextCommands {
 
 				(var gameIds, var time, var maxPlayerCount, var description) = ParseCommand(commands);
 
-				if (gameIds.Any()) {
+				var customParams = gameIds.Any();
+
+				if (customParams) {
 					await _extensionContext.SetUserRematchParameters(
 						serverId: Context.Guild.Id.ToString(),
 						userId: Context.User.Id.ToString(),
@@ -45,10 +47,13 @@ namespace DotemDiscord.TextCommands {
 
 				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString());
 
+
+				var useDefaults = gameIds.Any();
+
 				await HandleSearchAsync(
-					gameIds: gameIds.Any() ? gameIds : channelDefaults.gameIds,
-					duration: time ?? channelDefaults.duration,
-					maxPlayerCount: maxPlayerCount ?? channelDefaults.maxPlayerCount,
+					gameIds: customParams ? gameIds : channelDefaults.gameIds,
+					duration: customParams ? time : channelDefaults.duration,
+					maxPlayerCount: customParams ? maxPlayerCount : channelDefaults.maxPlayerCount,
 					description: description
 				);
 			} catch (Exception e) {
