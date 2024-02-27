@@ -25,7 +25,7 @@ namespace DotemDiscord.Context {
 					CREATE TABLE IF NOT EXISTS sessionConnection (
 						channelId INT NOT NULL,
 						messageId INT NOT NULL,
-						userId INT NOT NULL,
+						userId INT,
 						sessionId TEXT NOT NUll
 					);
 				";
@@ -36,7 +36,7 @@ namespace DotemDiscord.Context {
 		public async Task AddSessionConnectionAsync(SessionConnection connection)
 			=> await AddSessionConnectionAsync(connection.ChannelId, connection.MessageId, connection.MessageId, connection.SessionIds.ToArray());
 
-		public async Task AddSessionConnectionAsync(ulong channelId, ulong messageId, ulong userId, params Guid[] sessionIds) {
+		public async Task AddSessionConnectionAsync(ulong channelId, ulong messageId, ulong? userId, params Guid[] sessionIds) {
 			if (sessionIds.Length == 0) return;
 			using (var connection = GetOpenConnection()) {
 
@@ -50,7 +50,7 @@ namespace DotemDiscord.Context {
 
 				command.Parameters.AddWithValue("$channelId", channelId);
 				command.Parameters.AddWithValue("$messageId", messageId);
-				command.Parameters.AddWithValue("$userId", userId);
+				command.Parameters.AddWithValue("$userId", userId == null ? DBNull.Value : userId);
 				command.Parameters.AddRange(sessionIds.Select((guid, i) => new SqliteParameter("$g" + i, guid)));
 
 				await command.ExecuteNonQueryAsync();
@@ -65,7 +65,7 @@ namespace DotemDiscord.Context {
 						sessionConnection;
 				";
 
-				return (await connection.QueryAsync<(ulong channelId, ulong messageId, ulong userId, Guid sessionId)>(sql))
+				return (await connection.QueryAsync<(ulong channelId, ulong messageId, ulong? userId, Guid sessionId)>(sql))
 					.GroupBy(c => (c.channelId, c.messageId, c.userId))
 					.Select(g => new SessionConnection() {
 						ChannelId = g.Key.channelId,

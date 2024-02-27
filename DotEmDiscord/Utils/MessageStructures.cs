@@ -6,15 +6,19 @@ namespace DotemDiscord.Utils {
 	public static class MessageStructures {
 		//TODO: Move to Envs to allow translations
 
-		public static (string? content, MessageComponent? components) GetWaitingStructure(IEnumerable<SessionDetails> waits, ulong userId) {
+		public static (string? content, MessageComponent? components) GetWaitingStructure(IEnumerable<SessionDetails> waits, ulong? userId) {
 			if (!waits.Any()) { return ("No sessions! Shouldn't happen!", null); }
-			var stringId = userId.ToString();
 
-			var userExpires = waits
-				.Where(w => w.UserExpires.ContainsKey(stringId))
-				.Select(w => w.UserExpires[stringId]);
+			IEnumerable<DateTimeOffset> expireTimes;
 
-			var expireTimes = userExpires.Any()
+			var stringId = userId?.ToString();
+
+			var userExpires = stringId == null ? Enumerable.Empty<DateTimeOffset>()
+				: waits
+					.Where(w => w.UserExpires.ContainsKey(stringId))
+					.Select(w => w.UserExpires[stringId]);
+			
+			expireTimes = userExpires.Any()
 				? userExpires
 				: waits.SelectMany(w => w.UserExpires.Values);
 

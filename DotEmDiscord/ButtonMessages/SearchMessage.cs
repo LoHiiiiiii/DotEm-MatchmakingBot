@@ -15,12 +15,12 @@ namespace DotemDiscord.ButtonMessages {
 
 		public IUserMessage Message { get; }
 		public Dictionary<Guid, SessionDetails> Searches { get; }
-		public ulong CreatorId { get; }
+		public ulong? CreatorId { get; }
 
 		private SemaphoreSlim messageSemaphore = new SemaphoreSlim(1, 1);
 		private bool released;
 
-		public SearchMessage(DiscordSocketClient client, Matchmaker matchmaker, DiscordContext context, IUserMessage message, IEnumerable<SessionDetails> searches, ulong creatorId) {
+		public SearchMessage(DiscordSocketClient client, Matchmaker matchmaker, DiscordContext context, IUserMessage message, IEnumerable<SessionDetails> searches, ulong? creatorId) {
 			_client = client;
 			_client.ButtonExecuted += HandleButtonPress;
 			_client.MessageDeleted += HandleMessageDeleted;
