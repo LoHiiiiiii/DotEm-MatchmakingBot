@@ -39,7 +39,7 @@ namespace DotemDiscord.SlashCommands {
 
 				var idArray = gameIds?.Split(' ') ?? [];
 
-				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString());
+				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamatersAsync(Context.Channel.Id.ToString());
 				IUserMessage message = await GetOriginalResponseAsync();
 
 				var customParams = idArray.Any();

@@ -33,8 +33,7 @@ namespace DotemDiscord.Context {
 			}
 		}
 
-		public async Task AddSessionConnectionAsync(SessionConnection connection)
-			=> await AddSessionConnectionAsync(connection.ChannelId, connection.MessageId, connection.MessageId, connection.SessionIds.ToArray());
+		#region Session Connections
 
 		public async Task AddSessionConnectionAsync(ulong channelId, ulong messageId, ulong? userId, params Guid[] sessionIds) {
 			if (sessionIds.Length == 0) return;
@@ -75,6 +74,7 @@ namespace DotemDiscord.Context {
 					});
 			}
 		}
+
 		public async Task DeleteSessionConnectionAsync(SessionConnection sessionConnection)
 			=> await DeleteSessionConnectionAsync(sessionConnection.MessageId, sessionConnection.SessionIds.ToArray());
 
@@ -90,12 +90,13 @@ namespace DotemDiscord.Context {
 						AND sessionId IN ({string.Join(",", sessionIds.Select((_, i) => "$g" + i))});
 				";
 
-				command.Parameters.AddWithValue("messageId", messageId);
+				command.Parameters.AddWithValue("$messageId", messageId);
 				command.Parameters.AddRange(sessionIds.Select((id, i) => new SqliteParameter("$g" + i, id)));
 
 				await command.ExecuteNonQueryAsync();
 			}
 		}
+		#endregion
 
 		private SqliteConnection GetOpenConnection() {
 			var connection = new SqliteConnection($"Data Source={DataSource}");

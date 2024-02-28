@@ -5,6 +5,7 @@ using DotemDiscord.ButtonMessages;
 using DotemDiscord.Utils;
 using DotemModel;
 using DotemDiscord.Context;
+using static DotemModel.SessionResult;
 
 namespace DotemDiscord.Handlers {
 	public class ButtonMessageHandler {
@@ -97,14 +98,29 @@ namespace DotemDiscord.Handlers {
 			return suggestion.ExitResult ?? new SessionResult.NoAction();
 		}
 
+		public async Task<SearchMessage?> CreateSearchMessageAsync(
+			ulong channelId,
+			IEnumerable<SessionDetails> searches,
+			ulong? creatorId = null
+		) {
+			var channel = await _client.GetChannelAsync(channelId);
+			if (channel is not IMessageChannel) { return null; }
+
+			var structure = MessageStructures.GetWaitingStructure(searches, null);
+			var message = await ((IMessageChannel)channel).SendMessageAsync(structure.content, components: structure.components);
+			if (message == null) { return null; }
+			
+			return await CreateSearchMessageAsync(message, searches, creatorId);
+		}
+
 
 		public async Task<SearchMessage> CreateSearchMessageAsync(
 			IUserMessage message,
 			IEnumerable<SessionDetails> searches,
-			ulong creatorId
+			ulong? creatorId = null
 		) {
 			await _discordContext.AddSessionConnectionAsync(message.Channel.Id, message.Id, creatorId, searches.Select(s => s.SessionId).ToArray());
-			return new SearchMessage(_client, _matchmaker, _discordContext, message, searches, creatorId);
+			return new SearchMessage(_client, _matchmaker, _discordContext, message, searches, creatorId, creatorId == null);
 		}
 
 		public async Task CreatePreExistingSearchMessagesAsync() {

@@ -16,11 +16,20 @@ namespace DotemDiscord.ButtonMessages {
 		public IUserMessage Message { get; }
 		public Dictionary<Guid, SessionDetails> Searches { get; }
 		public ulong? CreatorId { get; }
+		public bool DeleteOnStop { get; }
 
 		private SemaphoreSlim messageSemaphore = new SemaphoreSlim(1, 1);
 		private bool released;
 
-		public SearchMessage(DiscordSocketClient client, Matchmaker matchmaker, DiscordContext context, IUserMessage message, IEnumerable<SessionDetails> searches, ulong? creatorId) {
+		public SearchMessage(
+			DiscordSocketClient client, 
+			Matchmaker matchmaker, 
+			DiscordContext context, 
+			IUserMessage message, 
+			IEnumerable<SessionDetails> searches, 
+			ulong? creatorId, 
+			bool deleteOnStop = false
+		) {
 			_client = client;
 			_client.ButtonExecuted += HandleButtonPress;
 			_client.MessageDeleted += HandleMessageDeleted;
@@ -30,6 +39,7 @@ namespace DotemDiscord.ButtonMessages {
 			Message = message;
 			CreatorId = creatorId;
 			Searches = searches.ToDictionary(s => s.SessionId, s => s);
+			DeleteOnStop = deleteOnStop;
 		}
 
 		public async Task HandleButtonPress(SocketMessageComponent component) {
@@ -99,6 +109,11 @@ namespace DotemDiscord.ButtonMessages {
 		// Remember to await semaphore before calling!
 		private async Task UpdateMessageAsync() {
 			var stillSearching = Searches.Any();
+
+			if (!stillSearching && DeleteOnStop) {
+				await Message.DeleteAsync();
+				return;
+			}
 			var structure = stillSearching
 				? MessageStructures.GetWaitingStructure(Searches.Values, CreatorId)
 				: MessageStructures.GetStoppedStructure();
@@ -123,7 +138,7 @@ namespace DotemDiscord.ButtonMessages {
 		}
 
 		private async Task HandleMessageDeleted(Cacheable<IMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel) {
-			if (message.Id != Message.Id) { return; }
+			if (message.Id != Message.Id || released) { return; }
 
 			await messageSemaphore.WaitAsync();
 			try {

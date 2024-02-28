@@ -279,7 +279,7 @@ namespace DotemMatchmaker.Context {
 			command.CommandText = $@"
 				DELETE FROM userJoin
 				WHERE
-				    {(userIds != null ? $"userId IN ({string.Join(",", sessionIds.Select((_, i) => "$s" + i))}) AND" : "")}
+				    {(userIds != null ? $"userId IN ({string.Join(",", userIds.Select((_, i) => "$s" + i))}) AND" : "")}
 					sessionId IN ({string.Join(",", sessionIds.Select((_, i) => "$g" + i))});
 			";
 			if (userIds != null) command.Parameters.AddRange(userIds.Select((user, i) => new SqliteParameter("$s" + i, user)));
@@ -457,7 +457,7 @@ namespace DotemMatchmaker.Context {
 					SET
 						gameId = $aliasGameId
 					WHERE 
-						gameId IN ({string.Join(",", gameIds.Select((_, i) => "$s" + i))})
+						gameId IN ({gameIdString})
 						AND serverId = $serverId;
 				";
 
@@ -488,7 +488,7 @@ namespace DotemMatchmaker.Context {
 					SET 
 						gameId = $aliasId
 					WHERE
-						gameId IN ({string.Join(",", gameIds.Select((_, i) => "$s" + i))})
+						gameId IN ({gameIdString})
 						AND serverId = $serverId;
 				";
 

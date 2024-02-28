@@ -3,14 +3,17 @@ using Discord.WebSocket;
 using DotemChatMatchmaker;
 using DotemDiscord.Utils;
 using Discord;
+using DotemDiscord.Handlers;
 
 namespace DotemDiscord.SlashCommands {
 	public class ChannelSlashCommands : InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>> {
 
 		private readonly ExtensionContext _extensionContext;
+		private readonly MatchmakingBoardHandler _matchmakingBoardHandler;
 
-		public ChannelSlashCommands(ExtensionContext extensionContext) {
+		public ChannelSlashCommands(ExtensionContext extensionContext, MatchmakingBoardHandler matchmakingBoardHandler) {
 			_extensionContext = extensionContext;
+			_matchmakingBoardHandler = matchmakingBoardHandler;
 		}
 
 		[EnabledInDm(false)]
@@ -20,7 +23,7 @@ namespace DotemDiscord.SlashCommands {
 			try {
 				await DeferAsync();
 
-				await _extensionContext.SetChannelDefaultParameters(
+				await _extensionContext.SetChannelDefaultParametersAsync(
 					Context.Channel.Id.ToString(),
 					gameIds: gameIds,
 					maxPlayerCount: maxPlayerCount,
@@ -45,7 +48,7 @@ namespace DotemDiscord.SlashCommands {
 			try {
 				await DeferAsync();
 
-				await _extensionContext.DeleteChannelDefaultParameters(Context.Channel.Id.ToString());
+				await _extensionContext.DeleteChannelDefaultParametersAsync(Context.Channel.Id.ToString());
 
 				await ModifyOriginalResponseAsync(x => {
 					x.Content = "Removed the defaults.";
@@ -64,7 +67,7 @@ namespace DotemDiscord.SlashCommands {
 			try {
 				await DeferAsync(true);
 
-				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString());
+				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamatersAsync(Context.Channel.Id.ToString());
 
 				var response = "No defaults for the channel.";
 
@@ -77,6 +80,39 @@ namespace DotemDiscord.SlashCommands {
 
 				await ModifyOriginalResponseAsync(x => {
 					x.Content = response;
+				});
+			} catch (Exception e) {
+				Console.WriteLine(e);
+				if (e is TimeoutException) return;
+				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
+			}
+		}
+
+		[EnabledInDm(false)]
+		[SlashCommand("set-board", "Makes the current channel not a matchmaking board.")]
+		public async Task SetChannelAsMatchmakingBoardAsync() {
+			try {
+				await DeferAsync(true);
+				await _extensionContext.AddMatchmakingBoardAsync(Context.Guild.Id.ToString(), Context.Channel.Id.ToString());
+				await _matchmakingBoardHandler.PostActiveMatchesAsync(Context.Guild.Id, Context.Channel.Id);
+				await ModifyOriginalResponseAsync(x => {
+					x.Content = "Set the channel as a matchmaking board.";
+				});
+			} catch (Exception e) {
+				Console.WriteLine(e);
+				if (e is TimeoutException) return;
+				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
+			}
+		}
+
+		[EnabledInDm(false)]
+		[SlashCommand("remove-board", "Makes the current channel not a matchmaking board.")]
+		public async Task RemoveChannelAsMatchmakingBoardAsync() {
+			try {
+				await DeferAsync(true);
+				await _extensionContext.DeleteMatchmakingBoardAsync(Context.Channel.Id.ToString());
+				await ModifyOriginalResponseAsync(x => {
+					x.Content = "Channel is no longer a matchmaking board.";
 				});
 			} catch (Exception e) {
 				Console.WriteLine(e);

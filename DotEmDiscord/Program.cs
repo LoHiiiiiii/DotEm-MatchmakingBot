@@ -32,12 +32,12 @@ namespace DotemDiscord
                 ThrowOnError = true,
             };
 
-			var collection = new ServiceCollection()
-				.AddSingleton<MatchmakingContext>()
-				.AddSingleton<DiscordContext>()
-				.AddSingleton<ExtensionContext>()
-				.AddSingleton<Matchmaker>()
-				.AddSingleton<MatchExpirer>()
+            var collection = new ServiceCollection()
+                .AddSingleton<MatchmakingContext>()
+                .AddSingleton<DiscordContext>()
+                .AddSingleton<ExtensionContext>()
+                .AddSingleton<Matchmaker>()
+                .AddSingleton<MatchExpirer>()
                 .AddSingleton(clientConfig)
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton<CommandServiceConfig>()
@@ -45,6 +45,7 @@ namespace DotemDiscord
 				.AddSingleton(interactionConfig)
                 .AddSingleton<InteractionService>()
 				.AddSingleton<ButtonMessageHandler>()
+				.AddSingleton<MatchmakingBoardHandler>()
 				.AddSingleton<TextCommandHandler>()
                 .AddSingleton<SlashCommandHandler>()
                 .AddSingleton<JokeHandler>();

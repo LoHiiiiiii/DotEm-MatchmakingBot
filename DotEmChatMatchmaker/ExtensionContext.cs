@@ -37,13 +37,18 @@ namespace DotemChatMatchmaker
 						description TEXT,
                         UNIQUE(serverId, userId)
 					);
+
+					CREATE TABLE IF NOT EXISTS matchmakingBoard (
+						channelId TEXT PRIMARY KEY NOT NULL,
+						serverId TEXY NOT NULL
+					);
 				";
 				command.ExecuteNonQuery();
 			}
 		}
 
 		#region Channel Default
-		public async Task<(string[] gameIds, int? maxPlayerCount, int? duration, string? description)> GetChannelDefaultSearchParamaters(string channelId) {
+		public async Task<(string[] gameIds, int? maxPlayerCount, int? duration, string? description)> GetChannelDefaultSearchParamatersAsync(string channelId) {
 			using (var connection = GetOpenConnection()) {
 
 				var sql = @"
@@ -73,7 +78,7 @@ namespace DotemChatMatchmaker
 			}
 		}
 
-		public async Task SetChannelDefaultParameters(string channelId, string gameIds, int? maxPlayerCount, int? duration, string? description) {
+		public async Task SetChannelDefaultParametersAsync(string channelId, string gameIds, int? maxPlayerCount, int? duration, string? description) {
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();
 				command.CommandText = @"
@@ -98,7 +103,7 @@ namespace DotemChatMatchmaker
 			}
 		}
 
-		public async Task DeleteChannelDefaultParameters(string channelId) {
+		public async Task DeleteChannelDefaultParametersAsync(string channelId) {
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();
 				command.CommandText = @"
@@ -172,6 +177,57 @@ namespace DotemChatMatchmaker
 			}
 		}
 		#endregion
+
+		#region Matchmaking Board
+		public async Task AddMatchmakingBoardAsync(string serverId, string channelId) {
+			using (var connection = GetOpenConnection()) {
+
+				var command = connection.CreateCommand();
+				command.CommandText = @$"
+					INSERT OR IGNORE INTO 
+						matchmakingBoard
+					VALUES 
+						($channelId, $serverId);
+				";
+
+				command.Parameters.AddWithValue("$channelId", channelId);
+				command.Parameters.AddWithValue("$serverId", serverId);
+
+				await command.ExecuteNonQueryAsync();
+			}
+		}
+
+		public async Task<IEnumerable<(string serverId, string channelId)>> GetMatchmakingBoardsAsync() {
+			using (var connection = GetOpenConnection()) {
+				var sql = @$"
+					SELECT
+						serverId,
+						channelId
+					FROM 
+						matchmakingBoard;
+				";
+
+				return await connection.QueryAsync<(string serverId, string channelId)>(sql);
+			}
+		}
+
+		public async Task DeleteMatchmakingBoardAsync(string channelId) {
+			using (var connection = GetOpenConnection()) {
+
+				var command = connection.CreateCommand();
+				command.CommandText = @$"
+					DELETE FROM 
+						matchmakingBoard
+					WHERE
+						channelId = $channelId
+				";
+
+				command.Parameters.AddWithValue("$channelId", channelId);
+				await command.ExecuteNonQueryAsync();
+			}
+		}
+		#endregion
+
 
 		private SqliteConnection GetOpenConnection() {
 			var connection = new SqliteConnection($"Data Source={DataSource}");

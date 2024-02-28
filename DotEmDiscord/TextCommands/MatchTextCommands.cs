@@ -45,7 +45,7 @@ namespace DotemDiscord.TextCommands {
 					);
 				}
 
-				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamaters(Context.Channel.Id.ToString());
+				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamatersAsync(Context.Channel.Id.ToString());
 
 
 				var useDefaults = gameIds.Any();
