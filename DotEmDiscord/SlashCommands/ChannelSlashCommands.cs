@@ -1,6 +1,6 @@
 ﻿using Discord.Interactions;
 using Discord.WebSocket;
-using DotemChatMatchmaker;
+using DotemExtensions;
 using DotemDiscord.Utils;
 using Discord;
 using DotemDiscord.Handlers;

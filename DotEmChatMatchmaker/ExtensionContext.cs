@@ -1,7 +1,7 @@
 ﻿using Dapper;
 using Microsoft.Data.Sqlite;
 
-namespace DotemChatMatchmaker
+namespace DotemExtensions
 {
     public class ExtensionContext {
 
@@ -41,6 +41,11 @@ namespace DotemChatMatchmaker
 					CREATE TABLE IF NOT EXISTS matchmakingBoard (
 						channelId TEXT PRIMARY KEY NOT NULL,
 						serverId TEXY NOT NULL
+					);
+
+					CREATE TABLE IF NOT EXISTS steamUser (
+						userId TEXT PRIMARY KEY NOT NULL,
+						steamId INT NOT NULL
 					);
 				";
 				command.ExecuteNonQuery();
@@ -223,6 +228,60 @@ namespace DotemChatMatchmaker
 				";
 
 				command.Parameters.AddWithValue("$channelId", channelId);
+				await command.ExecuteNonQueryAsync();
+			}
+		}
+		#endregion
+
+		#region Steam User
+		public async Task AddSteamUserAsync(string userId, ulong steamId) {
+			using (var connection = GetOpenConnection()) {
+
+				var command = connection.CreateCommand();
+				command.CommandText = @$"
+					INSERT INTO
+						steamUser
+					VALUES 
+						($userId, $steamId)
+					ON CONFLICT (userId)
+					DO UPDATE SET
+						steamId = excluded.steamId;
+				";
+
+				command.Parameters.AddWithValue("$userId", userId);
+				command.Parameters.AddWithValue("$steamId", steamId);
+
+				await command.ExecuteNonQueryAsync();
+			}
+		}
+
+		public async Task<ulong?> GetSteamUserAsync(string userId) {
+			using (var connection = GetOpenConnection()) {
+				var sql = @$"
+					SELECT
+						steamId
+					FROM 
+						steamUser
+					WHERE
+						userId = $userId;
+				";
+
+				return (await connection.QueryAsync<ulong>(sql, new { userId })).FirstOrDefault();
+			}
+		}
+
+		public async Task DeleteSteamUserAsync(string userId) {
+			using (var connection = GetOpenConnection()) {
+
+				var command = connection.CreateCommand();
+				command.CommandText = @$"
+					DELETE FROM 
+						matchmakingBoard
+					WHERE
+						userId = $userId;
+				";
+
+				command.Parameters.AddWithValue("$userId", userId);
 				await command.ExecuteNonQueryAsync();
 			}
 		}

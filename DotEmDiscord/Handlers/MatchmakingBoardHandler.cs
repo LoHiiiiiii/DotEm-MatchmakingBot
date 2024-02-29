@@ -1,6 +1,6 @@
 ﻿using DotemMatchmaker;
 using DotemModel;
-using DotemChatMatchmaker;
+using DotemExtensions;
 
 namespace DotemDiscord.Handlers {
 	public class MatchmakingBoardHandler {

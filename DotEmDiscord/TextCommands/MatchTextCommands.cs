@@ -4,7 +4,7 @@ using DotemModel;
 using Discord;
 using DotemDiscord.Handlers;
 using DotemMatchmaker;
-using DotemChatMatchmaker;
+using DotemExtensions;
 
 namespace DotemDiscord.TextCommands {
 	public class MatchTextCommands : ModuleBase<SocketCommandContext> {

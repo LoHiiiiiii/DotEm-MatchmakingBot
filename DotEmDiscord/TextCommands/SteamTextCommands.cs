@@ -1,0 +1,47 @@
+﻿using Discord.Commands;
+using DotemDiscord.Utils;
+using Discord;
+using DotemExtensions;
+
+namespace DotemDiscord.TextCommands {
+	public class SteamTextCommands : ModuleBase<SocketCommandContext> {
+
+		private readonly ExtensionContext _extensionContext;
+		private readonly SteamHandler _steamHandler;
+
+		public SteamTextCommands(ExtensionContext extensionContext, SteamHandler steamHandler) {
+			_extensionContext = extensionContext;
+			_steamHandler = steamHandler;
+		}
+
+		[Command("lobby", RunMode = RunMode.Async)]
+		public async Task SearchMatchTextCommandsAsync(params string[] commands) {
+			try {
+				var id = await _extensionContext.GetSteamUserAsync(Context.User.Id.ToString());
+				if (id == null) {
+					await Context.Message.ReplyAsync(text: "First register your Steam Id.");
+					return;
+				}
+				var result = await _steamHandler.GetLobbyLink((ulong)id);
+				if (!result.Successful) {
+					await Context.Message.ReplyAsync(text: "Problem with retrieving data from Steam.");
+					return;
+				}
+				if (result.SteamIdBad) {
+					await Context.Message.ReplyAsync(text: $"Your registered Steam Id ({id}) wasn't found on Steam.");
+					return;
+				}
+				if (result.LobbyLink == null) {
+					await Context.Message.ReplyAsync(text:"No lobby found.");
+					return;
+				}
+				var prefix = result.GameName != null ? $"{result.GameName} - " : "";
+				await Context.Message.ReplyAsync(text: $"{prefix}{result.LobbyLink}");
+			} catch (Exception e) {
+				Console.WriteLine(e);
+				if (e is TimeoutException) return;
+				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
+			}
+		}
+	}
+}

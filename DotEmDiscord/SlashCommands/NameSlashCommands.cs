@@ -11,6 +11,7 @@ namespace DotemDiscord.SlashCommands {
 
 		public NameSlashCommands(Matchmaker matchmaker) {
 			_matchmaker = matchmaker;
+			_matchmaker = matchmaker;
 		}
 
 		[EnabledInDm(false)]

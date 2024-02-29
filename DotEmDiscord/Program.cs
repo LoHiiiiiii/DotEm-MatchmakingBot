@@ -4,7 +4,7 @@ using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using DotemDiscord.Handlers;
 using Discord.Interactions;
-using DotemChatMatchmaker;
+using DotemExtensions;
 using DotemMatchmaker;
 using DotemDiscord.Context;
 using DotemMatchmaker.Context;
@@ -32,12 +32,17 @@ namespace DotemDiscord
                 ThrowOnError = true,
             };
 
-            var collection = new ServiceCollection()
+
+			var steamApiKey = Environment.GetEnvironmentVariable("STEAM_APIKEY") ?? "";
+			var lobbyPrefix = Environment.GetEnvironmentVariable("LOBBY_PREFIX") ?? "";
+
+			var collection = new ServiceCollection()
                 .AddSingleton<MatchmakingContext>()
                 .AddSingleton<DiscordContext>()
                 .AddSingleton<ExtensionContext>()
                 .AddSingleton<Matchmaker>()
                 .AddSingleton<MatchExpirer>()
+                .AddSingleton(new SteamHandler(steamApiKey, lobbyPrefix))
                 .AddSingleton(clientConfig)
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton<CommandServiceConfig>()
