@@ -5,7 +5,6 @@ using DotemDiscord.ButtonMessages;
 using DotemDiscord.Utils;
 using DotemModel;
 using DotemDiscord.Context;
-using static DotemModel.SessionResult;
 
 namespace DotemDiscord.Handlers {
 	public class ButtonMessageHandler {
@@ -26,7 +25,8 @@ namespace DotemDiscord.Handlers {
 			SocketInteraction interaction,
 			IEnumerable<SessionDetails> joinableSessions,
 			int? durationMinutes,
-			(string[]? gameIds, string? description, int? playerCount)? searchParams
+			(string[]? gameIds, string? description, int? playerCount)? searchParams,
+			bool allowCancel = false
 		) {
 			var guid = Guid.NewGuid();
 			var structure = MessageStructures.GetSuggestionStructure(
@@ -34,7 +34,8 @@ namespace DotemDiscord.Handlers {
 				userId: interaction.User.Id,
 				searchId: searchParams != null
 					? guid
-					: null
+					: null,
+				allowCancel: allowCancel
 			);
 			var followup = await interaction.FollowupAsync(
 				text: structure.content,
@@ -49,7 +50,8 @@ namespace DotemDiscord.Handlers {
 				creatorId: interaction.User.Id,
 				durationMinutes: durationMinutes,
 				searchParams: searchParams,
-				id: guid
+				id: guid,
+				allowCancel: allowCancel
 			);
 			suggestion.MessageSemaphore.Release();
 
@@ -63,12 +65,24 @@ namespace DotemDiscord.Handlers {
 			return suggestion.ExitResult ?? new SessionResult.NoAction();
 		}
 
+		public async Task<SessionResult> GetSuggestionResultAsync(
+			ulong userId,
+			IEnumerable<SessionDetails> joinableSessions,
+			int? durationMinutes,
+			(string[]? gameIds, string? description, int? playerCount)? searchParams,
+			bool allowCancel = false
+		) {
+			var user = await _client.GetUserAsync(userId);
+			if (user == null) return new SessionResult.NoAction();
+			return await GetSuggestionResultAsync(user, joinableSessions, durationMinutes, searchParams, allowCancel);
+		}
 
 		public async Task<SessionResult> GetSuggestionResultAsync(
 			IUser user,
 			IEnumerable<SessionDetails> joinableSessions,
 			int? durationMinutes,
-			(string[]? gameIds, string? description, int? playerCount)? searchParams
+			(string[]? gameIds, string? description, int? playerCount)? searchParams,
+			bool allowCancel = false
 		) {
 			var guid = Guid.NewGuid();
 			var structure = MessageStructures.GetSuggestionStructure(
@@ -76,7 +90,8 @@ namespace DotemDiscord.Handlers {
 				userId: user.Id,
 				searchId: searchParams != null
 					? guid
-					: null
+					: null,
+				allowCancel: allowCancel
 			);
 			var dm = await user.SendMessageAsync(
 				text: structure.content,
@@ -90,7 +105,8 @@ namespace DotemDiscord.Handlers {
 				creatorId: user.Id,
 				durationMinutes: durationMinutes,
 				searchParams: searchParams,
-				id: guid
+				id: guid,
+				allowCancel: allowCancel
 			);
 			suggestion.MessageSemaphore.Release();
 
@@ -113,7 +129,6 @@ namespace DotemDiscord.Handlers {
 			return await CreateSearchMessageAsync(message, searches, creatorId);
 		}
 
-
 		public async Task<SearchMessage> CreateSearchMessageAsync(
 			IUserMessage message,
 			IEnumerable<SessionDetails> searches,
@@ -124,7 +139,7 @@ namespace DotemDiscord.Handlers {
 		}
 
 		public async Task CreatePreExistingSearchMessagesAsync() {
-			var connections = await _discordContext.GetSessionConnectionsAsync();
+			var connections = await _discordContext.GetAllSessionConnectionsAsync();
 
 			if (connections == null || !connections.Any()) { return; }
 
@@ -173,7 +188,7 @@ namespace DotemDiscord.Handlers {
 
 				if (!existingSessions.Any()) { continue; }
 
-				new SearchMessage(_client, _matchmaker, _discordContext, message, existingSessions, connection.UserId);
+				new SearchMessage(_client, _matchmaker, _discordContext, message, existingSessions, connection.UserId, deleteOnStop: connection.UserId == null);
 			}
 		}
 	}

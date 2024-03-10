@@ -15,7 +15,7 @@ namespace DotemDiscord.SlashCommands {
 		}
 
 		[SlashCommand("lobby", "Gets the link to a Steam Lobby.")]
-		public async Task GetSteamLobby() {
+		public async Task GetSteamLobbySlashCommandAsync() {
 			try {
 				await DeferAsync();
 				var id = await _extensionContext.GetSteamUserAsync(Context.User.Id.ToString());
@@ -57,7 +57,7 @@ namespace DotemDiscord.SlashCommands {
 		}
 
 		[SlashCommand("add-steam-id", "Registers a steamid to this account")]
-		public async Task AddSteamId(string steamId) {
+		public async Task AddSteamIdSlashCommandAsync(string steamId) {
 			try {
 				await DeferAsync();
 				if (!ulong.TryParse(steamId, out var parsedId)) {
@@ -77,8 +77,8 @@ namespace DotemDiscord.SlashCommands {
 			}
 		}
 
-		[SlashCommand("remove-steam-id", "Registers a steamid to this account")]
-		public async Task RemoveSteamId(ulong steamId) {
+		[SlashCommand("remove-steam-id", "Removes a steamid from this account")]
+		public async Task RemoveSteamIdSlashCommandAsync() {
 			try {
 				await DeferAsync();
 				await _extensionContext.DeleteSteamUserAsync(Context.User.Id.ToString());

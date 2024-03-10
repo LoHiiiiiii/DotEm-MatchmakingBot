@@ -15,7 +15,7 @@ namespace DotemDiscord.TextCommands {
 		}
 
 		[Command("lobby", RunMode = RunMode.Async)]
-		public async Task SearchMatchTextCommandsAsync(params string[] commands) {
+		public async Task GetSteamLobbyTextCommandAsync() {
 			try {
 				var id = await _extensionContext.GetSteamUserAsync(Context.User.Id.ToString());
 				if (id == null) {

@@ -13,7 +13,6 @@ namespace DotemDiscord.ButtonMessages {
 		private readonly Matchmaker _matchmaker;
 
 		public Guid SuggestionId { get; } = Guid.NewGuid();
-
 		public IUserMessage Message { get; }
 		public Dictionary<Guid, SessionDetails> JoinableSessions { get; }
 		public ulong CreatorId { get; }
@@ -25,6 +24,7 @@ namespace DotemDiscord.ButtonMessages {
 		public SemaphoreSlim MessageSemaphore { get; } = new SemaphoreSlim(0, 1); // To handle creating before accepting calls
 		public SessionResult? ExitResult { get; private set; } = null;
 		public bool Released { get; private set; }
+		public bool AllowCancel { get; private set; }
 
 		public SuggestionMessage(
 			DiscordSocketClient client,
@@ -34,7 +34,8 @@ namespace DotemDiscord.ButtonMessages {
 			ulong creatorId,
 			int? durationMinutes,
 			(string[]? gameIds, string? description, int? playerCount)? searchParams,
-			Guid id
+			Guid id,
+			bool allowCancel
 		) {
 			_client = client;
 			_client.ButtonExecuted += HandleButtonPress;
@@ -47,6 +48,7 @@ namespace DotemDiscord.ButtonMessages {
 			DurationMinutes = durationMinutes;
 			SearchParams = searchParams;
 			SuggestionId = id;
+			AllowCancel = allowCancel;
 		}
 
 		public async Task HandleButtonPress(SocketMessageComponent component) {
@@ -67,6 +69,11 @@ namespace DotemDiscord.ButtonMessages {
 					await component.DeferAsync();
 					Release();
 					return;
+				}
+
+				if (component.Data.CustomId == MessageStructures.CANCEL_ID) {
+					Release();
+					await Message.DeleteAsync();
 				}
 
 				if (!Guid.TryParse(component.Data.CustomId, out var guid)) { return; }
@@ -104,7 +111,8 @@ namespace DotemDiscord.ButtonMessages {
 				userId: CreatorId,
 				searchId: SearchParams != null
 					? SuggestionId
-					: null
+					: null,
+				allowCancel: AllowCancel
 			);
 
 			if (Message is RestFollowupMessage) {

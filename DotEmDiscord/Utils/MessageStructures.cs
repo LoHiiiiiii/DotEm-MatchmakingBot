@@ -6,6 +6,9 @@ namespace DotemDiscord.Utils {
 	public static class MessageStructures {
 		//TODO: Move to Envs to allow translations
 
+		public const int BUTTON_LABEL_MAXLENGTH = 77;
+		public const string CANCEL_ID = "cancel";
+
 		public static (string? content, MessageComponent? components) GetWaitingStructure(IEnumerable<SessionDetails> waits, ulong? userId) {
 			if (!waits.Any()) { return ("No sessions! Shouldn't happen!", null); }
 
@@ -30,16 +33,24 @@ namespace DotemDiscord.Utils {
 			);
 		}
 
-		public static (string? content, MessageComponent? components) GetSuggestionStructure(IEnumerable<SessionDetails> joinables, ulong userId, Guid? searchId) {
+		public static (string? content, MessageComponent? components) GetSuggestionStructure(IEnumerable<SessionDetails> joinables, ulong userId, Guid? searchId, bool allowCancel) {
 
 			var builder = GetJoinButtons(joinables, userId.ToString());
 
 			if (searchId != null) {
 				builder.WithButton(
-					label: $"Search",
+					label: "Search",
 					style: ButtonStyle.Success,
 					customId: searchId.ToString(),
 					row: 1
+				);
+			}
+
+			if (allowCancel) {
+				builder.WithButton(
+					label: "Ignore",
+					style: ButtonStyle.Danger,
+					customId: CANCEL_ID
 				);
 			}
 
@@ -62,8 +73,15 @@ namespace DotemDiscord.Utils {
 				var style = (details.MaxPlayerCount == details.UserExpires.Count + 1)
 					? ButtonStyle.Primary
 					: ButtonStyle.Secondary;
+
+				var label = $"{details.GameId}{description}{playerCount}";
+
+				if (label.Length > BUTTON_LABEL_MAXLENGTH) {
+					label = label.Substring(0, BUTTON_LABEL_MAXLENGTH) + "...";
+				}
+
 				builder.WithButton(
-					label: $"{details.GameId}{description}{playerCount}",
+					label: label,
 					style: style,
 					disabled: disablerId != null && details.UserExpires.ContainsKey(disablerId),
 					customId: details.SessionId.ToString()
@@ -102,6 +120,7 @@ namespace DotemDiscord.Utils {
 		public static (string? content, MessageComponent? components) GetSuggestionsFinishedStructure() {
 			return ("Suggestions handled.", null);
 		}
+
 		public static (string? content, MessageComponent? components) GetSuggestionsWaitStructure() {
 			return ("Waiting user to handle suggestions...", null);
 		}
@@ -112,6 +131,10 @@ namespace DotemDiscord.Utils {
 
 		public static (string? content, MessageComponent? components) GetFailedJoinStructure() {
 			return ("Failed to join.", null);
+		}
+
+		public static (string? content, MessageComponent? components) GetForbiddenStructure(string text) {
+			return ($"Your input \"{text}\" contains forbidden formatting.", null);
 		}
 
 		public static string GetNaturalLanguageString(string[] strings) {

@@ -287,7 +287,6 @@ namespace DotemExtensions
 		}
 		#endregion
 
-
 		private SqliteConnection GetOpenConnection() {
 			var connection = new SqliteConnection($"Data Source={DataSource}");
 			connection.Open();

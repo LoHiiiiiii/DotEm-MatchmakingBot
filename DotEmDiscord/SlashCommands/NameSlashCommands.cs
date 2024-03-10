@@ -17,7 +17,7 @@ namespace DotemDiscord.SlashCommands {
 		[EnabledInDm(false)]
 		[DefaultMemberPermissions(GuildPermission.ManageGuild)]
 		[SlashCommand("add-alias", "Adds an Alias ID for Game Ids.")]
-		public async Task AddGameAliasesAsync(string aliasId, string gameIds) {
+		public async Task AddGameAliasesSlashCommandAsync(string aliasId, string gameIds) {
 			try {
 				await DeferAsync();
 				if (string.IsNullOrEmpty(aliasId) || string.IsNullOrWhiteSpace(aliasId)) {
@@ -59,7 +59,7 @@ namespace DotemDiscord.SlashCommands {
 		[EnabledInDm(false)]
 		[DefaultMemberPermissions(GuildPermission.ManageGuild)]
 		[SlashCommand("add-game-name", "Adds a longer name for a Game Id.")]
-		public async Task AddGameNameAsync(string gameId, string gameName) {
+		public async Task AddGameNameSlashCommandAsync(string gameId, string gameName) {
 			try {
 				await DeferAsync();
 				if (string.IsNullOrEmpty(gameId) || string.IsNullOrWhiteSpace(gameId)) {
@@ -96,7 +96,7 @@ namespace DotemDiscord.SlashCommands {
 		[EnabledInDm(false)]
 		[DefaultMemberPermissions(GuildPermission.ManageGuild)]
 		[SlashCommand("remove-alias", "Removes Alias IDs from Game IDs.")]
-		public async Task RemoveGameAliasesAsync(string gameIds) {
+		public async Task RemoveGameAliasesMatchCommandAsync(string gameIds) {
 			try {
 				await DeferAsync();
 				var splitGames = gameIds
@@ -126,7 +126,7 @@ namespace DotemDiscord.SlashCommands {
 		[EnabledInDm(false)]
 		[DefaultMemberPermissions(GuildPermission.ManageGuild)]
 		[SlashCommand("remove-game-name", "Removes longer game name from Game IDs.")]
-		public async Task RemoveGameNames(string gameIds) {
+		public async Task RemoveGameNamesSlashCommandAsync(string gameIds) {
 			try {
 				await DeferAsync();
 				var splitGames = gameIds
@@ -155,7 +155,7 @@ namespace DotemDiscord.SlashCommands {
 
 		[EnabledInDm(false)]
 		[SlashCommand("list-games", "Lists saved game names and alias IDs")]
-		public async Task ListGames() {
+		public async Task ListGamesSlashCommandAsync() {
 			try {
 				await DeferAsync(true);
 

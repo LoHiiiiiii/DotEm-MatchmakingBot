@@ -151,7 +151,7 @@ namespace DotemMatchmaker {
 				try {
 
 					var session = await _context.JoinSessionAsync(sessionId, userId, expireTime);
-					if (session == null) return new SessionResult.NoAction();
+					if (session == null) return new SessionResult.FailedToJoin();
 
 					if (session.UserExpires.Count < session.MaxPlayerCount) {
 						updatedSessions.Add(session);
@@ -291,10 +291,10 @@ namespace DotemMatchmaker {
 		#endregion
 
 		#region Game Name Handling
-		public async Task AddGameNameAsync(string serverId, string aliasId, string gameId) {
+		public async Task AddGameNameAsync(string serverId, string gameName, string gameId) {
 			await sessionSemaphore.WaitAsync();
 			try {
-				var updated = await _context.AddGameNameAsync(serverId, aliasId, gameId);
+				var updated = await _context.AddGameNameAsync(serverId, gameName, gameId);
 				if (!updated.Any()) { return; }
 				SessionChanged?.Invoke(
 					added: [],
@@ -311,11 +311,12 @@ namespace DotemMatchmaker {
 
 		public async Task<Dictionary<string, string>> GetGameNamesAsync(string serverId, params string[] gameIds) {
 			await sessionSemaphore.WaitAsync();
-			try { return await _context.GetGameAliasesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
+			try { return await _context.GetGameNamesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
 		}
+
 		public async Task DeleteGameNamesAsync(string serverId, params string[] gameIds) {
 			await sessionSemaphore.WaitAsync();
-			try { await _context.DeleteGameAliasesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
+			try { await _context.DeleteGameNamesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
 		}
 
 		#endregion
@@ -330,7 +331,7 @@ namespace DotemMatchmaker {
 			bool allowSuggestions = true,
 			params string[] gameIds
 		) {
-			var searchparams = gameIds
+			var searchParams = gameIds
 				.Select(id => (id, maxPlayerCount ?? DefaultMaxPlayerCount, description))
 				.ToArray();
 
@@ -339,7 +340,7 @@ namespace DotemMatchmaker {
 				userId: userId,
 				expireTime: DateTime.Now.AddMinutes(joinDuration ?? DefaultJoinDurationMinutes),
 				allowSuggestions: allowSuggestions,
-				searchParameters: searchparams
+				searchParameters: searchParams
 			);
 		}
 

@@ -27,6 +27,18 @@ namespace DotemDiscord.SlashCommands {
 				await DeferAsync();
 
 				if (gameIds != null) {
+					if (ContentFilter.ContainsForbidden(gameIds)) {
+						var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameIds);
+
+						await ModifyOriginalResponseAsync(x => {
+							x.Content = forbiddenStructure.content;
+							x.Components = forbiddenStructure.components;
+							x.AllowedMentions = AllowedMentions.None;
+						});
+						
+						return;
+					}
+
 					await _extensionContext.SetUserRematchParameters(
 						serverId: Context.Guild.Id.ToString(),
 						userId: Context.User.Id.ToString(),
@@ -35,6 +47,19 @@ namespace DotemDiscord.SlashCommands {
 						duration: time,
 						description: description
 					);
+				}
+
+
+				if (description != null && ContentFilter.ContainsForbidden(description)) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(description);
+
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = forbiddenStructure.content;
+						x.Components = forbiddenStructure.components;
+						x.AllowedMentions = AllowedMentions.None;
+					});
+
+					return;
 				}
 
 				var idArray = gameIds?.Split(' ') ?? [];
@@ -177,9 +202,22 @@ namespace DotemDiscord.SlashCommands {
 		[SlashCommand("cancel-matches-mc", "Cancels all or specific searches you are in")]
 		public async Task CancelMatchSlashCommandAsync(string? gameIds = null) {
 			try {
+
 				await DeferAsync(ephemeral: true);
 				var serverId = Context.Guild.Id.ToString();
 				var userId = Context.User.Id.ToString();
+
+				if (gameIds != null && ContentFilter.ContainsForbidden(gameIds)) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameIds);
+
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = forbiddenStructure.content;
+						x.Components = forbiddenStructure.components;
+						x.AllowedMentions = AllowedMentions.None;
+					});
+
+					return;
+				}
 
 				var idArray = gameIds?.Split(' ') ?? [];
 

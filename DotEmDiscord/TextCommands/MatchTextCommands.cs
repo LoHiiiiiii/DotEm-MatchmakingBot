@@ -30,6 +30,17 @@ namespace DotemDiscord.TextCommands {
 					return;
 				}
 
+				if (ContentFilter.ContainsForbidden(string.Join(" ", commands))) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(string.Join(" ", commands));
+
+					await Context.Message.ReplyAsync(text: forbiddenStructure.content,
+						components: forbiddenStructure.components,
+						allowedMentions: AllowedMentions.None
+					);
+
+					return;
+				}
+
 				(var gameIds, var time, var maxPlayerCount, var description) = ParseCommand(commands);
 
 				var customParams = gameIds.Any();
@@ -184,6 +195,17 @@ namespace DotemDiscord.TextCommands {
 
 				var serverId = Context.Guild.Id.ToString();
 				var userId = Context.User.Id.ToString();
+
+				if (ContentFilter.ContainsForbidden(string.Join(" ", gameIds))) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(string.Join(" ", gameIds));
+
+					await Context.Message.ReplyAsync(text: forbiddenStructure.content,
+						components: forbiddenStructure.components,
+						allowedMentions: AllowedMentions.None
+					);
+
+					return;
+				}
 
 				var structure = MessageStructures.GetCanceledStructure();
 				if (!gameIds.Any()) {

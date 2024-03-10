@@ -19,7 +19,7 @@ namespace DotemDiscord.SlashCommands {
 		[EnabledInDm(false)]
 		[DefaultMemberPermissions(GuildPermission.ManageGuild)]
 		[SlashCommand("set-default-search", "Sets default search parameters for the channel.")]
-		public async Task SetChannelDefaultSearchParameters(string gameIds, int? time = null, int? maxPlayerCount = null, string? description = null) {
+		public async Task SetChannelDefaultSearchParametersSlashCommandAsync(string gameIds, int? time = null, int? maxPlayerCount = null, string? description = null) {
 			try {
 				await DeferAsync();
 
@@ -44,7 +44,7 @@ namespace DotemDiscord.SlashCommands {
 		[EnabledInDm(false)]
 		[DefaultMemberPermissions(GuildPermission.ManageGuild)]
 		[SlashCommand("remove-default-search", "Removes any default search parameters from the channel.")]
-		public async Task DeleteChannelDefaultSearchParameters() {
+		public async Task DeleteChannelDefaultSearchParametersSlashCommandAsync() {
 			try {
 				await DeferAsync();
 
@@ -63,7 +63,7 @@ namespace DotemDiscord.SlashCommands {
 
 		[EnabledInDm(false)]
 		[SlashCommand("get-default-search", "Gets default search parameters for the channel.")]
-		public async Task GetChannelDefaultParameters() {
+		public async Task GetChannelDefaultParametersSlashCommandAsync() {
 			try {
 				await DeferAsync(true);
 
@@ -90,7 +90,7 @@ namespace DotemDiscord.SlashCommands {
 
 		[EnabledInDm(false)]
 		[SlashCommand("set-board", "Makes the current channel not a matchmaking board.")]
-		public async Task SetChannelAsMatchmakingBoardAsync() {
+		public async Task SetChannelAsMatchmakingBoardSlashCommandAsync() {
 			try {
 				await DeferAsync(true);
 				await _extensionContext.AddMatchmakingBoardAsync(Context.Guild.Id.ToString(), Context.Channel.Id.ToString());
@@ -107,7 +107,7 @@ namespace DotemDiscord.SlashCommands {
 
 		[EnabledInDm(false)]
 		[SlashCommand("remove-board", "Makes the current channel not a matchmaking board.")]
-		public async Task RemoveChannelAsMatchmakingBoardAsync() {
+		public async Task RemoveChannelAsMatchmakingBoardSlashCommandAsync() {
 			try {
 				await DeferAsync(true);
 				await _extensionContext.DeleteMatchmakingBoardAsync(Context.Channel.Id.ToString());

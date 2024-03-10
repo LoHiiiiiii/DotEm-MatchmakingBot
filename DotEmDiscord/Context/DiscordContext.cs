@@ -56,7 +56,7 @@ namespace DotemDiscord.Context {
 			}
 		}
 
-		public async Task<IEnumerable<SessionConnection>> GetSessionConnectionsAsync() {
+		public async Task<IEnumerable<SessionConnection>> GetAllSessionConnectionsAsync() {
 			using (var connection = GetOpenConnection()) {
 				var sql = @$"
 					SELECT *
@@ -72,6 +72,22 @@ namespace DotemDiscord.Context {
 						UserId = g.Key.userId,
 						SessionIds = g.Select(g => g.sessionId)
 					});
+			}
+		}
+
+		public async Task<IEnumerable<(string channelId, string messageId)>> GetSearchMessagesForSessionAsync(string sessionId) {
+			using (var connection = GetOpenConnection()) {
+				var sql = @$"
+					SELECT
+						channelId,
+						messageId
+					FROM 
+						sessionConnection
+					WHERE
+						sessionId = $sessionId;
+				";
+
+				return await connection.QueryAsync<(string channelId, string messageId)>(sql, new { sessionId });
 			}
 		}
 
