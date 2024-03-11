@@ -8,20 +8,28 @@ using DotemExtensions;
 using DotemMatchmaker;
 using DotemDiscord.Context;
 using DotemMatchmaker.Context;
+using Microsoft.Extensions.Configuration;
 
 namespace DotemDiscord
 {
     public class Program {
         private readonly IServiceProvider _serviceProvider;
+        private readonly IConfiguration _config;
 
-        public Program() {
-            _serviceProvider = CreateProvider();
+		public Program() {
+			var builder = new ConfigurationBuilder();
+           _config = builder.SetBasePath(Directory.GetCurrentDirectory())
+                   .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                   .AddEnvironmentVariables()
+                   .Build();
+
+			_serviceProvider = CreateProvider();
         }
 
         private static void Main(string[] args)
             => new Program().RunAsync(args).GetAwaiter().GetResult();
 
-        private static IServiceProvider CreateProvider() {
+        private IServiceProvider CreateProvider() {
             var clientConfig = new DiscordSocketConfig { 
                 GatewayIntents = GatewayIntents.MessageContent | GatewayIntents.AllUnprivileged & ~GatewayIntents.GuildScheduledEvents & ~GatewayIntents.GuildInvites,
                 UseInteractionSnowflakeDate = false,
@@ -32,13 +40,13 @@ namespace DotemDiscord
                 ThrowOnError = true,
             };
 
-			var steamApiKey = Environment.GetEnvironmentVariable("STEAM_APIKEY") ?? "";
-			var lobbyPrefix = Environment.GetEnvironmentVariable("LOBBY_PREFIX") ?? "";
+			var steamApiKey = _config["STEAM_APIKEY"] ?? "";
+			var lobbyPrefix = _config["LOBBY_PREFIX"] ?? "";
 
 			var collection = new ServiceCollection()
                 .AddSingleton<MatchmakingContext>()
-                .AddSingleton<DiscordContext>()
                 .AddSingleton<ExtensionContext>()
+                .AddSingleton<DiscordContext>()
                 .AddSingleton<Matchmaker>()
                 .AddSingleton<MatchExpirer>()
                 .AddSingleton(new SteamHandler(steamApiKey, lobbyPrefix))
@@ -75,7 +83,7 @@ namespace DotemDiscord
                 await Task.CompletedTask;
             };
 
-			var token = Environment.GetEnvironmentVariable("BOT_TOKEN");
+			var token = _config["BOT_TOKEN"];
             await client.LoginAsync(TokenType.Bot, token);
             await client.StartAsync();
 
