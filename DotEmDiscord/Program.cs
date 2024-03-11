@@ -23,7 +23,7 @@ namespace DotemDiscord
 
         private static IServiceProvider CreateProvider() {
             var clientConfig = new DiscordSocketConfig { 
-                GatewayIntents = GatewayIntents.MessageContent | GatewayIntents.AllUnprivileged,
+                GatewayIntents = GatewayIntents.MessageContent | GatewayIntents.AllUnprivileged & ~GatewayIntents.GuildScheduledEvents & ~GatewayIntents.GuildInvites,
                 UseInteractionSnowflakeDate = false,
 			};
 
@@ -67,8 +67,8 @@ namespace DotemDiscord
 				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync();
                 await _serviceProvider.GetRequiredService<MatchExpirer>().StartClearingExpiredJoins();
 				await _serviceProvider.GetRequiredService<SlashCommandHandler>().InstallSlashCommandsAsync();
-				await _serviceProvider.GetRequiredService<TextCommandHandler>().InstallTextCommandsAsync();
-			};
+                await _serviceProvider.GetRequiredService<TextCommandHandler>().InstallTextCommandsAsync();
+            };
 
 			client.Log += async (msg) => {
                 Console.WriteLine(msg);

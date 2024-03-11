@@ -15,7 +15,7 @@ namespace DotemDiscord.Handlers {
 		}
 
 		public async Task InstallSlashCommandsAsync() {
-			_client.SlashCommandExecuted += HandleSlashCommand; 
+			_client.SlashCommandExecuted += HandleSlashCommand;
 			await _interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
 		}
 
