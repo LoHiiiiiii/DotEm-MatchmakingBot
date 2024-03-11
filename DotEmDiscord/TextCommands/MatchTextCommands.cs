@@ -118,6 +118,9 @@ namespace DotemDiscord.TextCommands {
 			string? description
 		) {
 
+			if (duration != null) duration = ContentFilter.CapSearchDuration((int)duration);
+			gameIds = ContentFilter.CapSymbolCount(gameIds);
+
 			var result = await _matchmaker.SearchSessionAsync(
 				serverId: Context.Guild.Id.ToString(),
 				userId: Context.User.Id.ToString(),

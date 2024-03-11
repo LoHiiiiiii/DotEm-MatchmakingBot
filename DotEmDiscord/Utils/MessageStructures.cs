@@ -74,11 +74,13 @@ namespace DotemDiscord.Utils {
 					? ButtonStyle.Primary
 					: ButtonStyle.Secondary;
 
-				var label = $"{details.GameId}{description}{playerCount}";
+				var label = $"{details.GameId}{description}";
 
-				if (label.Length > BUTTON_LABEL_MAXLENGTH) {
-					label = label.Substring(0, BUTTON_LABEL_MAXLENGTH) + "...";
+				if (label.Length > BUTTON_LABEL_MAXLENGTH - playerCount.Length) {
+					label = label.Substring(0, BUTTON_LABEL_MAXLENGTH-playerCount.Length) + "...";
 				}
+
+				label += playerCount;
 
 				builder.WithButton(
 					label: label,
