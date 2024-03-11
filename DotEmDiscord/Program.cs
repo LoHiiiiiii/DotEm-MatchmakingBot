@@ -32,7 +32,6 @@ namespace DotemDiscord
                 ThrowOnError = true,
             };
 
-
 			var steamApiKey = Environment.GetEnvironmentVariable("STEAM_APIKEY") ?? "";
 			var lobbyPrefix = Environment.GetEnvironmentVariable("LOBBY_PREFIX") ?? "";
 
@@ -61,24 +60,15 @@ namespace DotemDiscord
         public async Task RunAsync(string[] args) {
 			var client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
 
-            var textCommandHandler = _serviceProvider.GetRequiredService<TextCommandHandler>();
-			await textCommandHandler.InstallTextCommandsAsync();
-
-			var idVar = Environment.GetEnvironmentVariable("TEST_GUILDID");
-            if (idVar == null || !ulong.TryParse(idVar, out var guildId)) {
-                Console.WriteLine("Missing guild id!");
-                return;
-            }
-
 			client.Ready += async () => {
 				_serviceProvider.GetRequiredService<DiscordContext>().Initialize();
 				_serviceProvider.GetRequiredService<MatchmakingContext>().Initialize();
 				_serviceProvider.GetRequiredService<ExtensionContext>().Initialize();
 				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync();
                 await _serviceProvider.GetRequiredService<MatchExpirer>().StartClearingExpiredJoins();
-				var slashCommandHandler = _serviceProvider.GetRequiredService<SlashCommandHandler>();
-                await slashCommandHandler.InstallSlashCommandsAsync(guildId);
-            };
+				await _serviceProvider.GetRequiredService<SlashCommandHandler>().InstallSlashCommandsAsync();
+				await _serviceProvider.GetRequiredService<TextCommandHandler>().InstallTextCommandsAsync();
+			};
 
 			client.Log += async (msg) => {
                 Console.WriteLine(msg);

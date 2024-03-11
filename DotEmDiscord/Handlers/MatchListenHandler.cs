@@ -5,6 +5,7 @@ using DotemMatchmaker.Context;
 using Discord.WebSocket;
 using Discord;
 using DotemDiscord.Utils;
+using Discord.Net;
 
 namespace DotemDiscord.Handlers {
 	public class MatchListenHandler {
@@ -72,7 +73,12 @@ namespace DotemDiscord.Handlers {
 			if (result  == null) { return; }
 			if (result is SessionResult.FailedToJoin) {
 				var structure = MessageStructures.GetFailedJoinStructure();
-				await user.SendMessageAsync(text: structure.content, components: structure.components);
+				try {
+					await user.SendMessageAsync(text: structure.content, components: structure.components);
+				} catch (HttpException e) {
+					if (e.DiscordCode == DiscordErrorCode.CannotSendMessageToUser) { return; }
+					throw;
+				}
 				return;
 			}
 			

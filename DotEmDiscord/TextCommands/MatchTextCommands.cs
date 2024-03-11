@@ -165,6 +165,17 @@ namespace DotemDiscord.TextCommands {
 					matched.matchedSession.Description);
 			}
 
+			if (result is SessionResult.FailedToSuggest) {
+				structure = (
+					content: "Couldn't suggest. Suggestions from text commands require the bot to direct message you.", 
+					components: null
+				);
+			}
+
+			if (result is SessionResult.FailedToJoin) {
+				structure = MessageStructures.GetFailedJoinStructure();
+			}
+
 			if (result is SessionResult.Waiting waiting) {
 				structure = MessageStructures.GetWaitingStructure(waiting.waits, Context.User.Id);
 				var message = await Context.Message.ReplyAsync(

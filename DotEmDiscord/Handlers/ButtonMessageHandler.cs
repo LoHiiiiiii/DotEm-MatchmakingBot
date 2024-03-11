@@ -5,6 +5,7 @@ using DotemDiscord.ButtonMessages;
 using DotemDiscord.Utils;
 using DotemModel;
 using DotemDiscord.Context;
+using Discord.Net;
 
 namespace DotemDiscord.Handlers {
 	public class ButtonMessageHandler {
@@ -93,14 +94,26 @@ namespace DotemDiscord.Handlers {
 					: null,
 				allowCancel: allowCancel
 			);
-			var dm = await user.SendMessageAsync(
-				text: structure.content,
-				components: structure.components
-			);
+			IUserMessage? message = null;
+			try {
+				message = await user.SendMessageAsync(
+					text: structure.content,
+					components: structure.components
+				);
+			} catch (HttpException e) {
+				if (e.DiscordCode == DiscordErrorCode.CannotSendMessageToUser) {
+					return new SessionResult.FailedToSuggest();
+				}
+				throw;
+			}
+			if (message == null) {
+				return new SessionResult.FailedToSuggest();
+			}
+
 			var suggestion = new SuggestionMessage(
 				client: _client,
 				matchmaker: _matchmaker,
-				message: dm,
+				message: message,
 				joinableSessions: joinableSessions,
 				creatorId: user.Id,
 				durationMinutes: durationMinutes,

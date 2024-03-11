@@ -4,6 +4,7 @@
 		public record Matched(SessionDetails matchedSession) : SessionResult;
 		public record Suggestions(IEnumerable<SessionDetails> suggestedSessions, bool allowWait) : SessionResult;
 		public record FailedToJoin() : SessionResult;
+		public record FailedToSuggest() : SessionResult;
 		public record NoAction() : SessionResult;
 
 		private SessionResult() { }

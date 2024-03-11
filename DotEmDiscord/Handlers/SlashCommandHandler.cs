@@ -14,10 +14,9 @@ namespace DotemDiscord.Handlers {
 			_serviceProvider = serviceProvider;
 		}
 
-		public async Task InstallSlashCommandsAsync(ulong guildId) {
+		public async Task InstallSlashCommandsAsync() {
 			_client.SlashCommandExecuted += HandleSlashCommand; 
 			await _interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
-			await _interactionService.RegisterCommandsToGuildAsync(guildId);
 		}
 
 		private async Task HandleSlashCommand(SocketSlashCommand command) {

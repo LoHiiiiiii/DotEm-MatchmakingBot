@@ -130,7 +130,7 @@ namespace DotemDiscord.Utils {
 		}
 
 		public static (string? content, MessageComponent? components) GetFailedJoinStructure() {
-			return ("Failed to join.", null);
+			return ("Failed to join. The session might have just expired or gotten canceled or filled.", null);
 		}
 
 		public static (string? content, MessageComponent? components) GetForbiddenStructure(string text) {
