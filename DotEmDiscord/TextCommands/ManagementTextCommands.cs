@@ -18,7 +18,7 @@ namespace DotemDiscord.TextCommands {
 		[Command("install-slash", RunMode = Discord.Commands.RunMode.Async)]
 		public async Task GetSteamLobbyTextCommandAsync() {
 			try {
-				await _interactionService.AddCommandsGloballyAsync();
+				await _interactionService.RegisterCommandsGloballyAsync(true);
 				await Context.User.SendMessageAsync(text: "Global registration done.");
 			} catch (Exception e) {
 				if (e is HttpException http) {
