@@ -26,29 +26,17 @@ namespace DotemDiscord.SlashCommands {
 			try {
 				await DeferAsync();
 
-				if (gameIds != null) {
-					if (ContentFilter.ContainsForbidden(gameIds)) {
-						var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameIds);
+				if (gameIds != null && ContentFilter.ContainsForbidden(gameIds)) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameIds);
 
-						await ModifyOriginalResponseAsync(x => {
-							x.Content = forbiddenStructure.content;
-							x.Components = forbiddenStructure.components;
-							x.AllowedMentions = AllowedMentions.None;
-						});
-						
-						return;
-					}
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = forbiddenStructure.content;
+						x.Components = forbiddenStructure.components;
+						x.AllowedMentions = AllowedMentions.None;
+					});
 
-					await _extensionContext.SetUserRematchParameters(
-						serverId: Context.Guild.Id.ToString(),
-						userId: Context.User.Id.ToString(),
-						gameIds: gameIds,
-						maxPlayerCount: maxPlayerCount,
-						duration: time,
-						description: description
-					);
+					return;
 				}
-
 
 				if (description != null && ContentFilter.ContainsForbidden(description)) {
 					var forbiddenStructure = MessageStructures.GetForbiddenStructure(description);
@@ -67,7 +55,23 @@ namespace DotemDiscord.SlashCommands {
 				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamatersAsync(Context.Channel.Id.ToString());
 				IUserMessage message = await GetOriginalResponseAsync();
 
-				var customParams = idArray.Any();
+				idArray = ContentFilter.CapSymbolCount(idArray);
+				if (time != null) time = ContentFilter.CapSearchDuration((int)time);
+				if (maxPlayerCount != null) maxPlayerCount = ContentFilter.CapPlayerCount((int)maxPlayerCount);
+				if (description != null) description = ContentFilter.CapSymbolCount(description);
+
+				var customParams = idArray.Any(s => string.IsNullOrWhiteSpace(s) || string.IsNullOrWhiteSpace(s));
+
+				if (customParams) {
+					await _extensionContext.SetUserRematchParameters(
+						serverId: Context.Guild.Id.ToString(),
+						userId: Context.User.Id.ToString(),
+						gameIds: string.Join(" ", idArray),
+						maxPlayerCount: maxPlayerCount,
+						duration: time,
+						description: description
+					);
+				}
 
 				(var waitedForInput, var content, var components) = await HandleSearchAsync(
 					message: message,
@@ -144,14 +148,16 @@ namespace DotemDiscord.SlashCommands {
 
 		private async Task<(bool waitedForInput, string? content, MessageComponent? components)> HandleSearchAsync(
 			IUserMessage message,
-			string[] gameIds, 
-			int? duration, 
-			int? maxPlayerCount, 
+			string[] gameIds,
+			int? duration,
+			int? maxPlayerCount,
 			string? description
 		) {
 
 			if (duration != null) duration = ContentFilter.CapSearchDuration((int)duration);
 			gameIds = ContentFilter.CapSymbolCount(gameIds);
+			if (maxPlayerCount != null) maxPlayerCount = ContentFilter.CapPlayerCount((int)maxPlayerCount);
+			if (description != null) description = ContentFilter.CapSymbolCount(description);
 
 			var result = await _matchmaker.SearchSessionAsync(
 				serverId: Context.Guild.Id.ToString(),
@@ -180,7 +186,7 @@ namespace DotemDiscord.SlashCommands {
 					joinableSessions: suggestions.suggestedSessions,
 						durationMinutes: duration ?? _matchmaker.DefaultJoinDurationMinutes,
 						searchParams: suggestions.allowWait
-							? ( gameIds: gameIds,
+							? (gameIds: gameIds,
 								description: description,
 								playerCount: maxPlayerCount)
 							: null

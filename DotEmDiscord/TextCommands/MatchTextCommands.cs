@@ -43,7 +43,12 @@ namespace DotemDiscord.TextCommands {
 
 				(var gameIds, var time, var maxPlayerCount, var description) = ParseCommand(commands);
 
-				var customParams = gameIds.Any();
+				var customParams = gameIds.Any(s => string.IsNullOrWhiteSpace(s) || string.IsNullOrWhiteSpace(s));
+
+				gameIds = ContentFilter.CapSymbolCount(gameIds);
+				if (time != null) time = ContentFilter.CapSearchDuration((int)time);
+				if (maxPlayerCount != null) maxPlayerCount = ContentFilter.CapPlayerCount((int)maxPlayerCount);
+				if (description != null) description = ContentFilter.CapSymbolCount(description);
 
 				if (customParams) {
 					await _extensionContext.SetUserRematchParameters(
@@ -57,9 +62,6 @@ namespace DotemDiscord.TextCommands {
 				}
 
 				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamatersAsync(Context.Channel.Id.ToString());
-
-
-				var useDefaults = gameIds.Any();
 
 				await HandleSearchAsync(
 					gameIds: customParams ? gameIds : channelDefaults.gameIds,
@@ -117,10 +119,6 @@ namespace DotemDiscord.TextCommands {
 			int? maxPlayerCount,
 			string? description
 		) {
-
-			if (duration != null) duration = ContentFilter.CapSearchDuration((int)duration);
-			gameIds = ContentFilter.CapSymbolCount(gameIds);
-
 			var result = await _matchmaker.SearchSessionAsync(
 				serverId: Context.Guild.Id.ToString(),
 				userId: Context.User.Id.ToString(),

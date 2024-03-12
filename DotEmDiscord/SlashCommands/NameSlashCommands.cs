@@ -62,6 +62,32 @@ namespace DotemDiscord.SlashCommands {
 		public async Task AddGameNameSlashCommandAsync(string gameId, string gameName) {
 			try {
 				await DeferAsync();
+
+
+				if (ContentFilter.ContainsForbidden(gameId)) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameId);
+
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = forbiddenStructure.content;
+						x.Components = forbiddenStructure.components;
+						x.AllowedMentions = AllowedMentions.None;
+					});
+
+					return;
+				}
+
+				if (ContentFilter.ContainsForbidden(gameName)) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameName);
+
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = forbiddenStructure.content;
+						x.Components = forbiddenStructure.components;
+						x.AllowedMentions = AllowedMentions.None;
+					});
+
+					return;
+				}
+
 				if (string.IsNullOrEmpty(gameId) || string.IsNullOrWhiteSpace(gameId)) {
 					await ModifyOriginalResponseAsync(x => {
 						x.Content = "Game ID cannot be empty.";
@@ -82,9 +108,13 @@ namespace DotemDiscord.SlashCommands {
 					});
 					return;
 				}
-				await _matchmaker.AddGameNameAsync(Context.Guild.Id.ToString(), splitGame.Single(), gameName);
+
+				var id = ContentFilter.CapSymbolCount(splitGame.Single());
+				gameName = ContentFilter.CapSymbolCount(gameName);
+
+				await _matchmaker.AddGameNameAsync(Context.Guild.Id.ToString(), id, gameName);
 				await ModifyOriginalResponseAsync(x => {
-					x.Content = $"Added Game Name {gameName} for Game ID {splitGame.Single()}.";
+					x.Content = $"Added Game Name {gameName} for Game ID {id}.";
 				});
 			} catch (Exception e) {
 				Console.WriteLine(e);

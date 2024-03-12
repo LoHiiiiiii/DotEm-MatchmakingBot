@@ -35,7 +35,7 @@ namespace DotemDiscord.SlashCommands {
 					return;
 				}
 
-				var idArray = gameIds.Split(' ');
+				var idArray = ContentFilter.CapSymbolCount(gameIds.Split(' '));
 
 				var serverId = Context.Guild.Id.ToString();
 
@@ -47,7 +47,10 @@ namespace DotemDiscord.SlashCommands {
 				var natural = MessageStructures.GetNaturalLanguageString(names.Values.ToArray());
 
 				await ModifyOriginalResponseAsync(x => {
-					x.Content = $"Listening for {natural} {(hours == null ? "forever" : $"for {hours} hours")}.";
+					x.Content = $"Listening for {natural} {(hours == null 
+						? "forever" 
+						: $"until <t:{DateTimeOffset.Now.AddHours((int)hours).ToUnixTimeSeconds()}:f>")
+					}.";
 				});
 			} catch (Exception e) {
 				Console.WriteLine(e);

@@ -23,12 +23,33 @@ namespace DotemDiscord.SlashCommands {
 			try {
 				await DeferAsync();
 
+				if (ContentFilter.ContainsForbidden(gameIds)) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameIds);
+
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = forbiddenStructure.content;
+						x.Components = forbiddenStructure.components;
+						x.AllowedMentions = AllowedMentions.None;
+					});
+
+					return;
+				}
+
+				var split = gameIds.Split(" ");
+				if (!split.Any(s => string.IsNullOrWhiteSpace(s) || string.IsNullOrWhiteSpace(s))) {
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = "Please give non-empty Game Ids.";
+					});
+
+					return;
+				}
+
 				await _extensionContext.SetChannelDefaultParametersAsync(
 					Context.Channel.Id.ToString(),
-					gameIds: gameIds,
-					maxPlayerCount: maxPlayerCount,
-					duration: time,
-					description
+					gameIds: string.Join(" ", ContentFilter.CapSymbolCount(split)),
+					maxPlayerCount: maxPlayerCount != null ? ContentFilter.CapPlayerCount((int)maxPlayerCount) : maxPlayerCount,
+					duration: time != null ? ContentFilter.CapSearchDuration((int)time) : time,
+					description: description != null ? ContentFilter.CapSymbolCount(description) : description
 				);
 
 				await ModifyOriginalResponseAsync(x => {
