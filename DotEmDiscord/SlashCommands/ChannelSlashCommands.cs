@@ -36,7 +36,7 @@ namespace DotemDiscord.SlashCommands {
 				}
 
 				var split = gameIds.Split(" ");
-				if (!split.Any(s => string.IsNullOrWhiteSpace(s) || string.IsNullOrWhiteSpace(s))) {
+				if (!split.Any(s => !string.IsNullOrWhiteSpace(s) && !string.IsNullOrWhiteSpace(s))) {
 					await ModifyOriginalResponseAsync(x => {
 						x.Content = "Please give non-empty Game Ids.";
 					});

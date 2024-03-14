@@ -60,7 +60,7 @@ namespace DotemDiscord.SlashCommands {
 				if (maxPlayerCount != null) maxPlayerCount = ContentFilter.CapPlayerCount((int)maxPlayerCount);
 				if (description != null) description = ContentFilter.CapSymbolCount(description);
 
-				var customParams = idArray.Any(s => string.IsNullOrWhiteSpace(s) || string.IsNullOrWhiteSpace(s));
+				var customParams = idArray.Any(s => !string.IsNullOrWhiteSpace(s) && !string.IsNullOrWhiteSpace(s));
 
 				if (customParams) {
 					await _extensionContext.SetUserRematchParameters(

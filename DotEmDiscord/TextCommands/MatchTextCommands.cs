@@ -43,7 +43,7 @@ namespace DotemDiscord.TextCommands {
 
 				(var gameIds, var time, var maxPlayerCount, var description) = ParseCommand(commands);
 
-				var customParams = gameIds.Any(s => string.IsNullOrWhiteSpace(s) || string.IsNullOrWhiteSpace(s));
+				var customParams = gameIds.Any(s => !string.IsNullOrWhiteSpace(s) && !string.IsNullOrWhiteSpace(s));
 
 				gameIds = ContentFilter.CapSymbolCount(gameIds);
 				if (time != null) time = ContentFilter.CapSearchDuration((int)time);
