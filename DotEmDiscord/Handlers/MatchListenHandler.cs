@@ -6,6 +6,8 @@ using Discord.WebSocket;
 using Discord;
 using DotemDiscord.Utils;
 using Discord.Net;
+using DotemExtensions;
+using DotemDiscord.ButtonMessages;
 
 namespace DotemDiscord.Handlers {
 	public class MatchListenHandler {
@@ -14,57 +16,78 @@ namespace DotemDiscord.Handlers {
 		private readonly ButtonMessageHandler _buttonMessageHandler;
 		private readonly MatchmakingContext _matchmakingContext;
 		private readonly DiscordContext _discordContext;
+		private readonly ExtensionContext _extensionContext;
 		private readonly DiscordSocketClient _client;
+
+		private HashSet<SessionDetails> sessionsToSuggest = new HashSet<SessionDetails>();
+		private SemaphoreSlim suggestionSemaphore = new SemaphoreSlim(1, 1);
 
 		public MatchListenHandler(
 			Matchmaker matchmaker,
 			ButtonMessageHandler buttonMessageHandler,
 			MatchmakingContext matchmakingContext,
 			DiscordContext discordContext,
+			ExtensionContext extensionContext,
 			DiscordSocketClient client
 		) {
 			_matchmaker = matchmaker;
-			_matchmaker.SessionChanged += HandleSessionChanged;
 			_buttonMessageHandler = buttonMessageHandler;
 			_matchmakingContext = matchmakingContext;
 			_discordContext = discordContext;
+			_extensionContext = extensionContext;
 			_client = client;
 		}
 
-		public async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
-			if (!added.Any()) { return; }
+		public async void HandleNewSearchMessage(SearchMessage searchMessage) {
+			await suggestionSemaphore.WaitAsync();
+			try {
+				var added = searchMessage.Searches.Values
+					.Where(sessionsToSuggest.Contains);
 
-			foreach (var session in added) {
-				var listens = await _matchmakingContext.GetMatchListenersAsync(session.ServerId, session.GameId);
-				if (!listens.Any()) { continue; }
+				if (!added.Any()) { return; }
 
-				var message = await GetSearchMessage(session);
+				foreach (var session in added) {
+					sessionsToSuggest.Remove(session);
+					var listens = await _matchmakingContext.GetMatchListenersAsync(session.ServerId, session.GameId);
+					if (!listens.Any()) { continue; }
 
-				if (message == null) { continue; }
-
-				foreach (var userString in listens) {
-					if (session.UserExpires.ContainsKey(userString)) { continue; }
-					HandleSuggestion(session, message, userString);
+					foreach (var userString in listens) {
+						if (session.UserExpires.ContainsKey(userString)) { continue; }
+						HandleSuggestion(session, userString, searchMessage.Message);
+					}
 				}
 			}
-		}
-
-		private async Task<IUserMessage?> GetSearchMessage(SessionDetails session) {
-			var idPairs = await _discordContext.GetSearchMessagesForSessionAsync(session.SessionId.ToString());
-
-			foreach (var idPair in idPairs) {
-				if (!ulong.TryParse(idPair.channelId, out var channelId)) { continue; }
-				if (!ulong.TryParse(idPair.messageId, out var messageId)) { continue; }
-				var channel = (IMessageChannel) await _client.GetChannelAsync(channelId);
-				if (channel == null) { continue; }
-				var message = (IUserMessage) await channel.GetMessageAsync(messageId);
-				if (message == null) { continue; }
-				return message;
+			catch (Exception e) {
+				Console.WriteLine(e);
+			} finally {
+				suggestionSemaphore.Release();
 			}
-			return null;
 		}
 
-		private async void HandleSuggestion(SessionDetails session, IUserMessage message, string userString) {
+		public async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+			await suggestionSemaphore.WaitAsync();
+			try {
+				if (!added.Any()) { return; }
+
+				foreach(var session in added) {
+					if (sessionsToSuggest.Contains(session)) { continue; }
+					sessionsToSuggest.Add(session);
+				}
+			} catch (Exception e) {
+				Console.WriteLine(e);
+			}
+			finally {
+				suggestionSemaphore.Release();
+			}
+		}
+
+		public void Initialize() {
+			_matchmaker.SessionChanged += HandleSessionChanged;
+			_buttonMessageHandler.SearchMessageCreated += HandleNewSearchMessage;
+		}
+
+
+		private async void HandleSuggestion(SessionDetails session, string userString, IUserMessage replyMessage) {
 			if (!ulong.TryParse(userString, out var userId)) { return; }
 			var user = await _client.GetUserAsync(userId);
 			if (user == null) { return; }
@@ -89,7 +112,7 @@ namespace DotemDiscord.Handlers {
 					matched.matchedSession.Description
 				);
 
-				await message.ReplyAsync(text: structure.content, components: structure.components);
+				await replyMessage.ReplyAsync(text: structure.content, components: structure.components);
 				return;
 			}
 		}

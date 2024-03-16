@@ -1,9 +1,8 @@
 ﻿using Dapper;
 using Microsoft.Data.Sqlite;
 
-namespace DotemExtensions
-{
-    public class ExtensionContext {
+namespace DotemExtensions {
+	public class ExtensionContext {
 
 		public string DataSource { get; }
 
@@ -213,6 +212,21 @@ namespace DotemExtensions
 				";
 
 				return await connection.QueryAsync<(string serverId, string channelId)>(sql);
+			}
+		}
+
+		public async Task<IEnumerable<string>> GetMatchmakingBoardsAsync(params string[] serverIds) {
+			using (var connection = GetOpenConnection()) {
+				var sql = @$"
+					SELECT
+						channelId
+					FROM 
+						matchmakingBoard
+					WHERE
+						serverId IN $serverIds;
+				";
+
+				return await connection.QueryAsync<string>(sql, new { serverIds });
 			}
 		}
 

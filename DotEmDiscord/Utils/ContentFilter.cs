@@ -3,7 +3,7 @@
 namespace DotemDiscord.Utils {
 	public static class ContentFilter {
 
-		private static readonly string[] regexs = { "<*>", "https:\\/\\/", "http:\\/\\/" };
+		private static readonly string[] regexs = { "<.*>", "https:\\/\\/", "http:\\/\\/", "\\*.*\\*", "_.*_"};
 		private const int MAX_SEARCH_DURATION = 1440;
 		public const int MAX_PLAYER_COUNT = 99;
 		public const int MAX_SYMBOL_COUNT = 200;

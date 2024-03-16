@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using DotemMatchmaker;
 using DotemDiscord.Utils;
 using DotemModel;
+using Discord.Net;
 
 namespace DotemDiscord.ButtonMessages {
 
@@ -85,6 +86,8 @@ namespace DotemDiscord.ButtonMessages {
 				await UpdateMessageAsync();
 				await component.DeferAsync();
 				Release();
+			} catch (Exception e) {
+				Console.WriteLine(e.Message);
 			} finally { MessageSemaphore.Release(); }
 		}
 
@@ -99,31 +102,43 @@ namespace DotemDiscord.ButtonMessages {
 
 		private async Task UpdateMessageAsync() {
 			if (ExitResult != null) {
-				if (Message is RestFollowupMessage) {
-					await ((RestFollowupMessage)Message).DeleteAsync();
-				} else await Message.DeleteAsync();
+				try {
+					if (Message is RestFollowupMessage) {
+						await ((RestFollowupMessage)Message).DeleteAsync();
+					} else {
+						await Message.DeleteAsync();
+					}
+				} catch (Exception e) {
+					if (e is HttpException http) {
+						if (http.DiscordCode == DiscordErrorCode.UnknownMessage) { return; }
+					}
+				}
 				Release();
 				return;
 			}
 
-			var structure = MessageStructures.GetSuggestionStructure(
-				joinables: JoinableSessions.Values,
-				userId: CreatorId,
-				searchId: SearchParams != null
-					? SuggestionId
-					: null,
-				allowCancel: AllowCancel
-			);
+			try {
+				var structure = MessageStructures.GetSuggestionStructure(
+					joinables: JoinableSessions.Values,
+					userId: CreatorId,
+					searchId: SearchParams != null
+						? SuggestionId
+						: null,
+					allowCancel: AllowCancel
+				);
 
-			if (Message is RestFollowupMessage) {
-				await ((RestFollowupMessage)Message).ModifyAsync(x => {
+				if (Message is RestFollowupMessage) {
+					await ((RestFollowupMessage)Message).ModifyAsync(x => {
+						x.Content = structure.content;
+						x.Components = structure.components;
+					});
+				} else await Message.ModifyAsync(x => {
 					x.Content = structure.content;
 					x.Components = structure.components;
 				});
-			} else await Message.ModifyAsync(x => {
-				x.Content = structure.content;
-				x.Components = structure.components;
-			});
+			} catch (Exception e) {
+				Console.WriteLine(e.Message);
+			}
 		}
 
 		private async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
@@ -148,7 +163,7 @@ namespace DotemDiscord.ButtonMessages {
 
 		private async Task HandleMessageDeleted(Cacheable<IMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel) {
 			if (message.Id != Message.Id) { return; }
-			
+
 			await MessageSemaphore.WaitAsync();
 			try {
 				Release();

@@ -158,8 +158,9 @@ namespace DotemMatchmaker {
 						return new SessionResult.Waiting([session]);
 					}
 
-					await _context.StopSessionsAsync(session.SessionId);
-					stoppedSessions.Add(session.SessionId);
+					(var updated, var stopped) = await _context.LeaveAllSessionsAsync(session.UserExpires.Keys.ToArray());
+					if (updated != null && updated.Any()) updatedSessions.AddRange(updated);
+					if (stopped != null && stopped.Any()) stoppedSessions.AddRange(stopped);
 					return new SessionResult.Matched(session);
 				} finally {
 					if (updatedSessions.Any() || stoppedSessions.Any()) {

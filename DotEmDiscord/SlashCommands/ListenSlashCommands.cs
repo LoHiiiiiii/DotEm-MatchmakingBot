@@ -84,10 +84,12 @@ namespace DotemDiscord.SlashCommands {
 
 				await _matchmakingContext.DeleteMatchListensAsync(serverId, Context.User.Id.ToString(), idArray);
 
-				var natural = MessageStructures.GetNaturalLanguageString(names.Values.ToArray());
+				var natural = names.Any()
+					? MessageStructures.GetNaturalLanguageString(names.Values.ToArray())
+					: "everything";
 
 				await ModifyOriginalResponseAsync(x => {
-					x.Content = $"Canceled listens for {natural}.";
+					x.Content = $"Stopped listening {natural}.";
 				});
 			} catch (Exception e) {
 				Console.WriteLine(e);

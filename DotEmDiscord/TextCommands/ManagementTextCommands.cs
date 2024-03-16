@@ -19,7 +19,9 @@ namespace DotemDiscord.TextCommands {
 		public async Task GetSteamLobbyTextCommandAsync() {
 			try {
 				await _interactionService.RegisterCommandsGloballyAsync(true);
-				await Context.User.SendMessageAsync(text: "Global registration done.");
+				try {
+					await Context.User.SendMessageAsync(text: "Global registration done.");
+				} catch { }
 			} catch (Exception e) {
 				if (e is HttpException http) {
 					if (http.DiscordCode == DiscordErrorCode.CannotSendMessageToUser) { return; }

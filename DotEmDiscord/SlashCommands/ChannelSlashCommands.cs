@@ -110,6 +110,7 @@ namespace DotemDiscord.SlashCommands {
 		}
 
 		[EnabledInDm(false)]
+		[DefaultMemberPermissions(GuildPermission.ManageGuild)]
 		[SlashCommand("set-board", "Makes the current channel not a matchmaking board.")]
 		public async Task SetChannelAsMatchmakingBoardSlashCommandAsync() {
 			try {
@@ -127,6 +128,7 @@ namespace DotemDiscord.SlashCommands {
 		}
 
 		[EnabledInDm(false)]
+		[DefaultMemberPermissions(GuildPermission.ManageGuild)]
 		[SlashCommand("remove-board", "Makes the current channel not a matchmaking board.")]
 		public async Task RemoveChannelAsMatchmakingBoardSlashCommandAsync() {
 			try {

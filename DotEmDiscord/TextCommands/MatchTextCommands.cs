@@ -20,6 +20,7 @@ namespace DotemDiscord.TextCommands {
 		}
 
 		[Command("m", RunMode = RunMode.Async)]
+		[Alias("match")]
 		public async Task SearchMatchTextCommandsAsync(params string[] commands) {
 			try {
 				if (Context.Guild == null) {
@@ -77,6 +78,7 @@ namespace DotemDiscord.TextCommands {
 		}
 
 		[Command("r", RunMode = RunMode.Async)]
+		[Alias("rematch")]
 		public async Task RematchTextCommandAsync() {
 			try {
 				if (Context.Guild == null) {

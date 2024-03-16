@@ -17,6 +17,7 @@ namespace DotemDiscord.SlashCommands {
 		}
 
 		[Command("l", RunMode = RunMode.Async)]
+		[Alias("listen")]
 		public async Task ListenMatchesTextCommandAsync(string gameIds, int? hours = null) {
 			try {
 				if (Context.Guild == null) {
@@ -43,7 +44,7 @@ namespace DotemDiscord.SlashCommands {
 
 				var names = (await _matchmakingContext.GetGameNamesAsync(serverId, idArray));
 
-				DateTimeOffset? expireTime = hours == null ? DateTimeOffset.Now.AddHours((double)hours!) : null;
+				DateTimeOffset? expireTime = hours != null ? DateTimeOffset.Now.AddHours((double)hours!) : null;
 				await _matchmakingContext.AddMatchListenAsync(serverId, Context.User.Id.ToString(), expireTime, idArray);
 
 				var natural = MessageStructures.GetNaturalLanguageString(names.Values.ToArray());
@@ -87,10 +88,12 @@ namespace DotemDiscord.SlashCommands {
 
 				await _matchmakingContext.DeleteMatchListensAsync(serverId, Context.User.Id.ToString(), idArray);
 
-				var natural = MessageStructures.GetNaturalLanguageString(names.Values.ToArray());
+				var natural = names.Any()
+					? MessageStructures.GetNaturalLanguageString(names.Values.ToArray())
+					: "everything";
 
 				await Context.Message.ReplyAsync(
-					text: $"Canceled listens for {natural}."
+					text: $"Stopped listening {natural}."
 				);
 			} catch (Exception e) {
 				Console.WriteLine(e);

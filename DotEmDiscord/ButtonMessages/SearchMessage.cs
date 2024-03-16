@@ -17,6 +17,7 @@ namespace DotemDiscord.ButtonMessages {
 		public Dictionary<Guid, SessionDetails> Searches { get; }
 		public ulong? CreatorId { get; }
 		public bool DeleteOnStop { get; }
+		public IUserMessage? ReplyMessage { get; set; }
 
 		private SemaphoreSlim messageSemaphore = new SemaphoreSlim(1, 1);
 		private bool released;
@@ -92,6 +93,10 @@ namespace DotemDiscord.ButtonMessages {
 
 					if (result is SessionResult.Waiting) return;
 
+					if (!ephemeral && ReplyMessage != null) {
+						await ReplyMessage.ReplyAsync(text: structure.content, components: structure.components);
+						return;
+					}
 					await component.FollowupAsync(
 						text: structure.content,
 						components: structure.components,

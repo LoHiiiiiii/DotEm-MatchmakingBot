@@ -1,49 +1,95 @@
 ﻿using DotemMatchmaker;
 using DotemModel;
 using DotemExtensions;
+using DotemDiscord.ButtonMessages;
+using DotemDiscord.Context;
+using Discord.WebSocket;
 
 namespace DotemDiscord.Handlers {
 	public class MatchmakingBoardHandler {
 
+		public readonly DiscordContext _discordContext;
 		public readonly ExtensionContext _extensionContext;
 		public readonly Matchmaker _matchmaker;
 		public readonly ButtonMessageHandler _buttonMessageHandler;
 
-		public MatchmakingBoardHandler(ExtensionContext extensionContext, Matchmaker matchmaker, ButtonMessageHandler buttonMessageHandler) {
+		private HashSet<SessionDetails> sessionsToPostToBoard = new HashSet<SessionDetails>();
+		private SemaphoreSlim postBoardSemaphore = new SemaphoreSlim(1, 1);
+
+		public MatchmakingBoardHandler(DiscordContext discordContext, ExtensionContext extensionContext, Matchmaker matchmaker, ButtonMessageHandler buttonMessageHandler) {
+			_discordContext = discordContext;
 			_extensionContext = extensionContext;
 			_matchmaker = matchmaker;
+			_matchmaker.SessionChanged += HandleSessionChanged;
 			_buttonMessageHandler = buttonMessageHandler;
-			_matchmaker.SessionChanged += HandleNewSearchMessages;
+			_buttonMessageHandler.SearchMessageCreated += HandleNewSearchMessages;
 		}
 
 		public async Task PostActiveMatchesAsync(ulong serverId, ulong channelId) {
 			var activeSearches = await _matchmaker.GetAllSessionsAsync();
 			var stringServerId = serverId.ToString();
+			var serverMessages = await _discordContext.GetAllSessionConnectionsAsync();
+			var boards = (await _extensionContext.GetMatchmakingBoardsAsync(serverId.ToString()))
+				.Distinct()
+				.ToHashSet();
+			serverMessages = serverMessages.Where(sm => !boards.Contains(sm.ChannelId.ToString()));
 			foreach (var session in activeSearches) {
 				if (session.ServerId != stringServerId) { continue; }
-				await _buttonMessageHandler.CreateSearchMessageAsync(channelId, [session]);
+				var serverMessage = serverMessages
+					.Where(sm => sm.SessionIds.ToHashSet().Contains(session.SessionId))
+					.FirstOrDefault();
+				await _buttonMessageHandler.CreateSearchMessageAsync(channelId, [session], messageId: serverMessage?.MessageId, serverMessage?.ChannelId);
 			}
 		}
 
-		private async void HandleNewSearchMessages(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
-			if (!added.Any()) { return; }
+		private async void HandleNewSearchMessages(SearchMessage searchMessage) {
+			await postBoardSemaphore.WaitAsync();
+			try {
+				var added = searchMessage.Searches.Values
+					.Where(sessionsToPostToBoard.Contains);
 
-			var boards = (await _extensionContext.GetMatchmakingBoardsAsync())
-				.Select<(string serverId, string channelId), (string serverId, ulong? channelId)> (pair => (
-					pair.serverId,
-					ulong.TryParse(pair.channelId, out var c) ? c : null
-				))
-				.Where(pair => pair.channelId != null)
-				.GroupBy(pair => pair.serverId)
-				.ToDictionary(grouping => grouping.Key, grouping => grouping.Select(pair => (ulong)pair.channelId!));
+				if (!added.Any()) { return; }
 
-			if (boards == null || !boards.Any()) { return; }
+				var boards = (await _extensionContext.GetMatchmakingBoardsAsync())
+					.Select<(string serverId, string channelId), (string serverId, ulong? channelId)>(pair => (
+						pair.serverId,
+						ulong.TryParse(pair.channelId, out var c) ? c : null
+					))
+					.Where(pair => pair.channelId != null)
+					.GroupBy(pair => pair.serverId)
+					.ToDictionary(grouping => grouping.Key, grouping => grouping.Select(pair => (ulong)pair.channelId!));
 
-			foreach(var session in added) {
-				if (!boards.ContainsKey(session.ServerId)) { continue; }
-				foreach (var channel in boards[session.ServerId]) {
-					await _buttonMessageHandler.CreateSearchMessageAsync(channel, [session]);
+				if (boards == null || !boards.Any()) { return; }
+
+				foreach (var session in added) {
+					sessionsToPostToBoard.Remove(session);
+					if (!boards.ContainsKey(session.ServerId)) { continue; }
+					foreach (var channel in boards[session.ServerId]) {
+						await _buttonMessageHandler.CreateSearchMessageAsync(channel, [session], replyMessage: searchMessage.Message);
+					}
 				}
+			}
+			catch (Exception e) {
+				Console.WriteLine(e.Message);
+			} finally {
+				postBoardSemaphore.Release();
+			}
+		}
+
+		public async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+			await postBoardSemaphore.WaitAsync();
+			try {
+				if (!added.Any()) { return; }
+
+				foreach (var session in added) {
+					if (sessionsToPostToBoard.Contains(session)) { continue; }
+					sessionsToPostToBoard.Add(session);
+				}
+			} catch (Exception e) {
+				Console.WriteLine(e);
+			}
+			finally {
+				postBoardSemaphore.Release();
 			}
 		}
 	}
