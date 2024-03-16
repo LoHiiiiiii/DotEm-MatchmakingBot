@@ -438,7 +438,10 @@ namespace DotemMatchmaker.Context {
 			if (!gameIds.Any()) { return Enumerable.Empty<SessionDetails>(); }
 			using (var connection = GetOpenConnection()) {
 
-				var ids = gameIds.Select(s => s.ToLower()).Distinct();
+				var ids = gameIds
+					.Select(s => s.ToLower())
+					.Distinct()
+					.Where(s => s != aliasGameId);
 				var gameIdString = string.Join(",", ids.Select((_, i) => "$s" + i));
 				var command = connection.CreateCommand();
 				command.CommandText = $@"
@@ -474,7 +477,12 @@ namespace DotemMatchmaker.Context {
 
 					UPDATE OR IGNORE listen
 					SET 
-						gameId = $aliasId
+						gameId = $aliasGameId
+					WHERE
+						gameId IN ({gameIdString})
+						AND serverId = $serverId;
+
+					DELETE FROM listen
 					WHERE
 						gameId IN ({gameIdString})
 						AND serverId = $serverId;
@@ -602,7 +610,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<IEnumerable<SessionDetails>> AddGameNameAsync(string serverId, string name, string gameId) {
+		public async Task<IEnumerable<SessionDetails>> AddGameNameAsync(string serverId, string gameId, string name) {
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();
 
@@ -615,7 +623,7 @@ namespace DotemMatchmaker.Context {
 						($gameId,$serverId,$name)
 					ON CONFLICT (gameId, serverId) 
 					DO UPDATE SET 
-						aliasGameId=excluded.aliasGameId;
+						gameId=excluded.gameId;
 				";
 
 				command.Parameters.AddWithValue("$gameId", id);
@@ -626,8 +634,8 @@ namespace DotemMatchmaker.Context {
 
 				var sql = $@"{sessionSelectBase}
 					WHERE
-						gameId = $gameId
-						AND serverId = $serverId;
+						session.gameId = $gameId
+						AND session.serverId = $serverId;
 				";
 
 				return await SessionQueryAsync(connection, sql, new { gameId, serverId });
