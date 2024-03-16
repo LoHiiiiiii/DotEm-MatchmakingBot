@@ -2,7 +2,6 @@
 using DotemDiscord.Utils;
 using Discord;
 using DotemMatchmaker;
-using DotemExtensions;
 using DotemMatchmaker.Context;
 
 namespace DotemDiscord.SlashCommands {
@@ -18,7 +17,7 @@ namespace DotemDiscord.SlashCommands {
 
 		[Command("l", RunMode = RunMode.Async)]
 		[Alias("listen")]
-		public async Task ListenMatchesTextCommandAsync(string gameIds, int? hours = null) {
+		public async Task ListenMatchesTextCommandAsync(params string[] commands) {
 			try {
 				if (Context.Guild == null) {
 					await Context.Message.ReplyAsync(
@@ -28,8 +27,10 @@ namespace DotemDiscord.SlashCommands {
 					return;
 				}
 
-				if (ContentFilter.ContainsForbidden(gameIds)) {
-					var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameIds);
+				var forbidden = ContentFilter.ContainsForbidden(commands);
+
+				if (forbidden != null) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(forbidden);
 
 					await Context.Message.ReplyAsync(text: forbiddenStructure.content,
 						components: forbiddenStructure.components,
@@ -39,13 +40,12 @@ namespace DotemDiscord.SlashCommands {
 					return;
 				}
 
-				var idArray = gameIds.Split(' ');
+				(var gameIds, var hours) = ParseCommands(commands);
 				var serverId = Context.Guild.Id.ToString();
-
-				var names = (await _matchmakingContext.GetGameNamesAsync(serverId, idArray));
+				var names = (await _matchmakingContext.GetGameNamesAsync(serverId, gameIds));
 
 				DateTimeOffset? expireTime = hours != null ? DateTimeOffset.Now.AddHours((double)hours!) : null;
-				await _matchmakingContext.AddMatchListenAsync(serverId, Context.User.Id.ToString(), expireTime, idArray);
+				await _matchmakingContext.AddMatchListenAsync(serverId, Context.User.Id.ToString(), expireTime, gameIds);
 
 				var natural = MessageStructures.GetNaturalLanguageString(names.Values.ToArray());
 
@@ -60,7 +60,7 @@ namespace DotemDiscord.SlashCommands {
 		}
 
 		[Command("lc", RunMode = RunMode.Async)]
-		public async Task CancelMatchListensTextCommandAsync(string? gameIds = null) {
+		public async Task CancelMatchListensTextCommandAsync(params string[] commands) {
 			try {
 				if (Context.Guild == null) {
 					await Context.Message.ReplyAsync(
@@ -70,8 +70,10 @@ namespace DotemDiscord.SlashCommands {
 					return;
 				}
 
-				if (gameIds != null && ContentFilter.ContainsForbidden(gameIds)) {
-					var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameIds);
+				var forbidden = ContentFilter.ContainsForbidden(commands);
+
+				if (forbidden != null) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(forbidden);
 
 					await Context.Message.ReplyAsync(text: forbiddenStructure.content,
 						components: forbiddenStructure.components,
@@ -81,12 +83,11 @@ namespace DotemDiscord.SlashCommands {
 					return;
 				}
 
-				var idArray = gameIds?.Split(' ') ?? [];
+				(var gameIds, var hours) = ParseCommands(commands);
 				var serverId = Context.Guild.Id.ToString();
+				var names = (await _matchmakingContext.GetGameNamesAsync(serverId, gameIds));
 
-				var names = (await _matchmakingContext.GetGameNamesAsync(serverId, idArray));
-
-				await _matchmakingContext.DeleteMatchListensAsync(serverId, Context.User.Id.ToString(), idArray);
+				await _matchmakingContext.DeleteMatchListensAsync(serverId, Context.User.Id.ToString(), gameIds);
 
 				var natural = names.Any()
 					? MessageStructures.GetNaturalLanguageString(names.Values.ToArray())
@@ -100,6 +101,24 @@ namespace DotemDiscord.SlashCommands {
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}
+		}
+
+		(string[] gameIds, int? hours) ParseCommands(string[] split) {
+			List<string> games = new List<string>();
+			List<int> times = new List<int>();
+
+			for (int i = 0; i < split.Length; i++) {
+				if (int.TryParse(split[i], out var parsed)) {
+					if (parsed > 0) times.Add(parsed);
+					continue;
+				}
+				games.Add(split[i]);
+			}
+
+			return (
+				gameIds: games?.ToArray() ?? [],
+				hours: times.Any() ? times.Min() : null
+			);
 		}
 	}
 }

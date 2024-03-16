@@ -1,6 +1,5 @@
 ﻿using Discord.Interactions;
 using Discord.WebSocket;
-using DotemExtensions;
 using DotemDiscord.Utils;
 using DotemMatchmaker;
 using DotemMatchmaker.Context;
@@ -41,7 +40,7 @@ namespace DotemDiscord.SlashCommands {
 
 				var names = (await _matchmaker.GetGameNamesAsync(serverId, idArray));
 
-				DateTimeOffset? expireTime = hours == null ? DateTimeOffset.Now.AddHours((double)hours!) : null;
+				DateTimeOffset? expireTime = hours != null ? DateTimeOffset.Now.AddHours((double)hours!) : null;
 				await _matchmakingContext.AddMatchListenAsync(serverId, Context.User.Id.ToString(), expireTime, idArray);
 
 				var natural = MessageStructures.GetNaturalLanguageString(names.Values.ToArray());

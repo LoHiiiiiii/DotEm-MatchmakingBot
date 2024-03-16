@@ -86,6 +86,10 @@ namespace DotemDiscord.ButtonMessages {
 						);
 						ephemeral = false;
 						await ReleaseAsync();
+						var message = ReplyMessage != null ? ReplyMessage : Message;
+						await message.Channel.SendMessageAsync(text: structure.content, components: structure.components);
+						await Message.DeleteAsync();
+						return;
 					}
 
 					await UpdateMessageAsync();
@@ -97,6 +101,7 @@ namespace DotemDiscord.ButtonMessages {
 						await ReplyMessage.ReplyAsync(text: structure.content, components: structure.components);
 						return;
 					}
+
 					await component.FollowupAsync(
 						text: structure.content,
 						components: structure.components,

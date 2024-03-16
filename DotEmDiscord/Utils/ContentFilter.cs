@@ -3,7 +3,7 @@
 namespace DotemDiscord.Utils {
 	public static class ContentFilter {
 
-		private static readonly string[] regexs = { "<.*>", "https:\\/\\/", "http:\\/\\/", "\\*.*\\*", "_.*_"};
+		private static readonly string[] regexs = { "<.*>", "https:\\/\\/", "http:\\/\\/", "\\*.*\\*", "_.*_", "\n"};
 		private const int MAX_SEARCH_DURATION = 1440;
 		public const int MAX_PLAYER_COUNT = 99;
 		public const int MAX_SYMBOL_COUNT = 200;
@@ -15,6 +15,13 @@ namespace DotemDiscord.Utils {
 			}
 
 			return false;
+		}
+
+		public static string? ContainsForbidden(string[] texts) {
+			foreach(var text in texts) {
+				if (ContainsForbidden(text)) { return text; }
+			}
+			return null;
 		}
 
 		public static int CapSearchDuration(int duration) {

@@ -527,23 +527,23 @@ namespace DotemMatchmaker.Context {
 				if (gameIds == null || !gameIds.Any()) return new();
 				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray()))?.Values.Distinct()!;
 
-				var sql = $@"
+				var sql = @"
 					SELECT 
 						gameId, name
 					FROM 
 						gameName
 					WHERE
 						serverId = $serverId
-						AND gameId IN ${nameof(aliasIds)};
+						AND gameId IN $aliasIds;
 				";
 
-				var result = await connection.QueryAsync(sql, new { aliasIds, serverId });
+				var result = await connection.QueryAsync(sql, new { serverId, aliasIds });
 
 				var names = result
-					?.Where(row => row?.gameId != null && row?.aliasGameId != null)
+					?.Where(row => row?.gameId != null && row?.name != null)
 					?.ToDictionary(
 						row => (string)row.gameId,
-						row => (string)row.aliasGameId
+						row => (string)row.name
 					)
 					?? new();
 

@@ -31,8 +31,10 @@ namespace DotemDiscord.TextCommands {
 					return;
 				}
 
-				if (ContentFilter.ContainsForbidden(string.Join(" ", commands))) {
-					var forbiddenStructure = MessageStructures.GetForbiddenStructure(string.Join(" ", commands));
+				var forbidden = ContentFilter.ContainsForbidden(commands);
+
+				if (forbidden != null) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(forbidden);
 
 					await Context.Message.ReplyAsync(text: forbiddenStructure.content,
 						components: forbiddenStructure.components,
@@ -210,8 +212,11 @@ namespace DotemDiscord.TextCommands {
 				var serverId = Context.Guild.Id.ToString();
 				var userId = Context.User.Id.ToString();
 
-				if (ContentFilter.ContainsForbidden(string.Join(" ", gameIds))) {
-					var forbiddenStructure = MessageStructures.GetForbiddenStructure(string.Join(" ", gameIds));
+
+				var forbidden = ContentFilter.ContainsForbidden(gameIds);
+
+				if (forbidden != null) {
+					var forbiddenStructure = MessageStructures.GetForbiddenStructure(forbidden);
 
 					await Context.Message.ReplyAsync(text: forbiddenStructure.content,
 						components: forbiddenStructure.components,
