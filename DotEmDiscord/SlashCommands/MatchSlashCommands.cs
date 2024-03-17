@@ -76,8 +76,8 @@ namespace DotemDiscord.SlashCommands {
 				(var waitedForInput, var content, var components) = await HandleSearchAsync(
 					message: message,
 					gameIds: customParams ? idArray : channelDefaults.gameIds,
-					duration: customParams ? time : channelDefaults.duration,
-					maxPlayerCount: customParams ? maxPlayerCount : channelDefaults.maxPlayerCount,
+					duration: customParams ? time : time ?? channelDefaults.duration,
+					maxPlayerCount: customParams ? maxPlayerCount : maxPlayerCount ?? channelDefaults.maxPlayerCount,
 					description: description
 				);
 

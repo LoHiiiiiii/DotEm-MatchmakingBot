@@ -68,8 +68,8 @@ namespace DotemDiscord.TextCommands {
 
 				await HandleSearchAsync(
 					gameIds: customParams ? gameIds : channelDefaults.gameIds,
-					duration: customParams ? time : channelDefaults.duration,
-					maxPlayerCount: customParams ? maxPlayerCount : channelDefaults.maxPlayerCount,
+					duration: customParams ? time : time ?? channelDefaults.duration,
+					maxPlayerCount: customParams ? maxPlayerCount : maxPlayerCount ?? channelDefaults.maxPlayerCount,
 					description: description
 				);
 			} catch (Exception e) {
