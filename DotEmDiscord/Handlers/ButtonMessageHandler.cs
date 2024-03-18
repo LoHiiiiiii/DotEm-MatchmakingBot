@@ -26,6 +26,7 @@ namespace DotemDiscord.Handlers {
 			_discordContext = discordContext;
 			_extensionContext = extensionContext;
 			_matchmaker = matchmaker;
+			_matchmaker.SessionChanged += HandleSessionChanged;
 			_client = client;
 		}
 
@@ -233,6 +234,15 @@ namespace DotemDiscord.Handlers {
 				if (!existingSessions.Any()) { continue; }
 
 				new SearchMessage(_client, _matchmaker, _discordContext, message, existingSessions, connection.UserId, deleteOnStop: connection.UserId == null);
+			}
+		}
+		public async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+			try {
+				if (!stopped.Any()) { return; }
+
+				await _discordContext.DeleteSessionConnectionAsync(stopped);
+			} catch (Exception e) {
+				Console.WriteLine(e);
 			}
 		}
 	}

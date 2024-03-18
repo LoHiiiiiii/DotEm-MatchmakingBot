@@ -112,6 +112,22 @@ namespace DotemDiscord.Context {
 				await command.ExecuteNonQueryAsync();
 			}
 		}
+		public async Task DeleteSessionConnectionAsync(IEnumerable<Guid> sessionIds) {
+			using (var connection = GetOpenConnection()) {
+
+				var command = connection.CreateCommand();
+				command.CommandText = @$"
+					DELETE FROM 
+						sessionConnection
+					WHERE
+						sessionId IN ({string.Join(",", sessionIds.Select((_, i) => "$g" + i))});
+				";
+				
+				command.Parameters.AddRange(sessionIds.Select((id, i) => new SqliteParameter("$g" + i, id)));
+
+				await command.ExecuteNonQueryAsync();
+			}
+		}
 		#endregion
 
 		private SqliteConnection GetOpenConnection() {
