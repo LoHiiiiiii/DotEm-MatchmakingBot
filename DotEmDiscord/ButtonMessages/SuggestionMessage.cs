@@ -68,24 +68,26 @@ namespace DotemDiscord.ButtonMessages {
 						));
 					await UpdateMessageAsync();
 					await component.DeferAsync();
-					Release();
 					return;
 				}
 
 				if (component.Data.CustomId == MessageStructures.CANCEL_ID) {
+					await DeleteMessage();
 					Release();
-					await Message.DeleteAsync();
+					await component.DeferAsync();
+					return;
 				}
 
 				if (!Guid.TryParse(component.Data.CustomId, out var guid)) { return; }
 				if (!JoinableSessions.ContainsKey(guid)) { return; }
 
 				var result = await _matchmaker.TryJoinSessionAsync(CreatorId.ToString(), guid, DurationMinutes);
-				if (result is not SessionResult.Waiting
-					&& result is not SessionResult.NoAction) { ExitResult = result; }
+				if (result is not SessionResult.FailedToJoin
+					&& result is not SessionResult.NoAction) { 
+					ExitResult = result; 
+				}
 				await UpdateMessageAsync();
 				await component.DeferAsync();
-				Release();
 			} catch (Exception e) {
 				Console.WriteLine(e.Message);
 			} finally { MessageSemaphore.Release(); }
@@ -102,17 +104,7 @@ namespace DotemDiscord.ButtonMessages {
 
 		private async Task UpdateMessageAsync() {
 			if (ExitResult != null) {
-				try {
-					if (Message is RestFollowupMessage) {
-						await ((RestFollowupMessage)Message).DeleteAsync();
-					} else {
-						await Message.DeleteAsync();
-					}
-				} catch (Exception e) {
-					if (e is HttpException http) {
-						if (http.DiscordCode == DiscordErrorCode.UnknownMessage) { return; }
-					}
-				}
+				await DeleteMessage();
 				Release();
 				return;
 			}
@@ -127,38 +119,59 @@ namespace DotemDiscord.ButtonMessages {
 					allowCancel: AllowCancel
 				);
 
-				if (Message is RestFollowupMessage) {
-					await ((RestFollowupMessage)Message).ModifyAsync(x => {
+				if (Message is RestFollowupMessage restMessage) {
+					await restMessage.ModifyAsync(x => {
 						x.Content = structure.content;
 						x.Components = structure.components;
 					});
-				} else await Message.ModifyAsync(x => {
-					x.Content = structure.content;
-					x.Components = structure.components;
-				});
+				} else {
+					await Message.ModifyAsync(x => {
+						x.Content = structure.content;
+						x.Components = structure.components;
+					});
+				}
 			} catch (Exception e) {
 				Console.WriteLine(e.Message);
 			}
 		}
 
-		private async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
-			if (!updated.Any() && !stopped.Any()) { return; }
-
-			await MessageSemaphore.WaitAsync();
+		private async Task DeleteMessage() {
 			try {
-				var modified = false;
-				foreach (var id in stopped) {
-					if (!JoinableSessions.ContainsKey(id)) continue;
-					modified = true;
-					JoinableSessions.Remove(id);
+				if (Message is RestFollowupMessage restMessage) {
+					await restMessage.DeleteAsync();
+				} else {
+					await Message.DeleteAsync();
 				}
-				foreach (var session in updated) {
-					if (!JoinableSessions.ContainsKey(session.SessionId)) { continue; }
-					modified = true;
-					JoinableSessions[session.SessionId] = session;
+			} catch (Exception e) {
+				if (e is HttpException http) {
+					if (http.DiscordCode != DiscordErrorCode.UnknownMessage) { throw; }
 				}
-				if (modified) { await UpdateMessageAsync(); }
-			} finally { MessageSemaphore.Release(); }
+			}
+		}
+
+
+		private async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+			try {
+				if (!updated.Any() && !stopped.Any()) { return; }
+
+				await MessageSemaphore.WaitAsync();
+				try {
+					var modified = false;
+					foreach (var id in stopped) {
+						if (!JoinableSessions.ContainsKey(id)) continue;
+						modified = true;
+						JoinableSessions.Remove(id);
+					}
+					foreach (var session in updated) {
+						if (!JoinableSessions.ContainsKey(session.SessionId)) { continue; }
+						modified = true;
+						JoinableSessions[session.SessionId] = session;
+					}
+					if (modified) { await UpdateMessageAsync(); }
+				} finally { MessageSemaphore.Release(); }
+			} catch (Exception e) {
+				Console.WriteLine(e.Message);
+			}
 		}
 
 		private async Task HandleMessageDeleted(Cacheable<IMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel) {

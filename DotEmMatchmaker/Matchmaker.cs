@@ -43,11 +43,12 @@ namespace DotemMatchmaker {
 				var stoppedSessions = clear.stopped.ToList();
 
 				try {
+					var aliases = await _context.GetGameAliasesAsync(serverId, searchParameters.Select(s => s.gameId).ToArray());
 					var uniqueSearches = searchParameters
-						.Select(attempt => (gameId: attempt.gameId.ToLower(), attempt.playerCount, attempt.description))
+						.Select(attempt => (gameId: aliases[attempt.gameId], attempt.playerCount, attempt.description))
+						.Distinct()
 						.ToHashSet();
-					var uniqueGames = uniqueSearches.Select(attempt => attempt.gameId);
-					var matchingGames = await _context.GetUserJoinableSessionsAsync(serverId, userId, uniqueGames);
+					var matchingGames = await _context.GetUserJoinableSessionsAsync(serverId, userId, aliases.Values);
 					if (matchingGames.Any()) {
 						var playableExactMatches = matchingGames.Where(match =>
 							match.UserExpires.Count == match.MaxPlayerCount - 1
@@ -73,8 +74,8 @@ namespace DotemMatchmaker {
 								if (joined != null) {
 
 									(var updated, var stopped) = await _context.LeaveAllSessionsAsync(joined.UserExpires.Keys.ToArray());
-									if (updated != null && updated.Any()) updatedSessions.AddRange(updated);
-									if (stopped != null && stopped.Any()) stoppedSessions.AddRange(stopped);
+									if (updated.Any()) updatedSessions.AddRange(updated);
+									if (stopped.Any()) stoppedSessions.AddRange(stopped);
 
 									return new SessionResult.Matched(joined);
 								}
@@ -130,7 +131,7 @@ namespace DotemMatchmaker {
 
 					return new SessionResult.Waiting(waitingSessions);
 				} finally {
-					if (addedSessions.Any() || stoppedSessions.Any() || updatedSessions.Any()) {
+					if (addedSessions.Any() || updatedSessions.Any() || stoppedSessions.Any()) {
 						SessionChanged?.Invoke(
 							added: addedSessions,
 							updated: updatedSessions,
@@ -159,8 +160,8 @@ namespace DotemMatchmaker {
 					}
 
 					(var updated, var stopped) = await _context.LeaveAllSessionsAsync(session.UserExpires.Keys.ToArray());
-					if (updated != null && updated.Any()) updatedSessions.AddRange(updated);
-					if (stopped != null && stopped.Any()) stoppedSessions.AddRange(stopped);
+					if (updated.Any()) updatedSessions.AddRange(updated);
+					if (stopped.Any()) stoppedSessions.AddRange(stopped);
 					return new SessionResult.Matched(session);
 				} finally {
 					if (updatedSessions.Any() || stoppedSessions.Any()) {

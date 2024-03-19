@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using DotemDiscord.Utils;
 using Discord;
 using DotemMatchmaker;
+using System.Text;
 
 namespace DotemDiscord.SlashCommands {
 	public class NameSlashCommands : InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>> {
@@ -183,8 +184,10 @@ namespace DotemDiscord.SlashCommands {
 			}
 		}
 
+
+		const int DISCORD_MESSAGE_LENGTH_MAX = 2000;
 		[EnabledInDm(false)]
-		[SlashCommand("list-games", "Lists saved game names and alias IDs")]
+		[SlashCommand("list-games", "Lists saved game names and Alias IDs")]
 		public async Task ListGamesSlashCommandAsync() {
 			try {
 				await DeferAsync(true);
@@ -202,14 +205,44 @@ namespace DotemDiscord.SlashCommands {
 				var names = await _matchmaker.GetAllGameNamesAsync(Context.Guild.Id.ToString());
 				var ids = aliasGameIds.Keys.Concat(names.Keys).Distinct();
 
-				var nameRows = ids.Select(id 
-					=> $"{id}{(aliasGameIds.ContainsKey(id) ? $" ({aliasGameIds[id]})" : "")}{(names.ContainsKey(id) ? $" - {names[id]}" : "")}");
+				var nameRows = ids
+					.OrderBy(id => id)
+					.OrderBy(id => names.GetValueOrDefault(id) ?? "")
+					.Select(id =>
+						$"{id}{(aliasGameIds.ContainsKey(id) ? $" ({aliasGameIds[id]})" : "")}{(names.ContainsKey(id) ? $" - {names[id]}" : "")}")
+					.ToArray();
 
-				var response = nameRows.Any() ? string.Join("\n", nameRows) : "No registered games on this server.";
+				if (!nameRows.Any()) {
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = "No registered games on this server.";
+					});
+					return;
+				}
 
-				await ModifyOriginalResponseAsync(x => {
-					x.Content = response;
-				});
+				var builder = new StringBuilder();
+				var originalModified = false;
+
+				for (int i = 0; i < nameRows.Length; ++i) {
+					var value = nameRows[i];
+					if (value.Length > DISCORD_MESSAGE_LENGTH_MAX) {
+						value = value.Substring(0, DISCORD_MESSAGE_LENGTH_MAX);
+					}
+
+					builder.Append(value);
+					if (i == nameRows.Length - 1 || builder.Length + nameRows[i + 1].Length > DISCORD_MESSAGE_LENGTH_MAX - 2) {
+						if (!originalModified) {
+							originalModified = true;
+							await ModifyOriginalResponseAsync(x => {
+								x.Content = builder.ToString();
+							});
+						} else {
+							await FollowupAsync(text: builder.ToString(), ephemeral: true);
+						}
+						builder.Clear();
+					} else {
+						builder.Append("\n");
+					}
+				}
 			} catch (Exception e) {
 				Console.WriteLine(e);
 				if (e is TimeoutException) return;

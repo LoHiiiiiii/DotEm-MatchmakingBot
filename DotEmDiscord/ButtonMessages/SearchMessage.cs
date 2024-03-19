@@ -116,6 +116,13 @@ namespace DotemDiscord.ButtonMessages {
 			}
 		}
 
+		public async void ForceMessageUpdate() {
+			await messageSemaphore.WaitAsync();
+			try {
+				await UpdateMessageAsync();
+			} finally { messageSemaphore.Release(); }
+		}
+
 		// Remember to await semaphore before calling!
 		private async Task UpdateMessageAsync() {
 			var stillSearching = Searches.Any();
@@ -157,23 +164,27 @@ namespace DotemDiscord.ButtonMessages {
 		}
 
 		private async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
-			if (!updated.Any() && !stopped.Any()) { return; }
-
-			await messageSemaphore.WaitAsync();
 			try {
-				var modified = false;
-				foreach (var id in stopped) {
-					if (!Searches.ContainsKey(id)) continue;
-					modified = true;
-					Searches.Remove(id);
-				}
-				foreach (var session in updated) {
-					if (!Searches.ContainsKey(session.SessionId)) { continue; }
-					modified = true;
-					Searches[session.SessionId] = session;
-				}
-				if (modified) { await UpdateMessageAsync(); }
-			} finally { messageSemaphore.Release(); }
+				if (!updated.Any() && !stopped.Any()) { return; }
+
+				await messageSemaphore.WaitAsync();
+				try {
+					var modified = false;
+					foreach (var id in stopped) {
+						if (!Searches.ContainsKey(id)) continue;
+						modified = true;
+						Searches.Remove(id);
+					}
+					foreach (var session in updated) {
+						if (!Searches.ContainsKey(session.SessionId)) { continue; }
+						modified = true;
+						Searches[session.SessionId] = session;
+					}
+					if (modified) { await UpdateMessageAsync(); }
+				} finally { messageSemaphore.Release(); }
+			} catch (Exception e) {
+				Console.WriteLine(e.Message);
+			}
 		}
 	}
 }

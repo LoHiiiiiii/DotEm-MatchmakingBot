@@ -85,16 +85,16 @@ namespace DotemMatchmaker.Context {
 
 		public async Task<IEnumerable<SessionDetails>> GetUserJoinableSessionsAsync(string serverId, string userId, IEnumerable<string>? gameIds = null) {
 			using (var connection = GetOpenConnection()) {
-				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray()))?.Values.Distinct();
+				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray())).Values.Distinct();
 
 				var sql = @$"{sessionSelectBase}
 					WHERE 
 						session.serverId = $serverId
 						AND userId != $userId
-						{(aliasIds == null ? "" : "AND session.GameId IN $gameIds")};
+						{(aliasIds.Any() ? "" : "AND session.GameId IN $gameIds")};
 				";
 
-				object? parameters = aliasIds != null
+				object parameters = aliasIds.Any()
 					? new { serverId, userId, gameIds = aliasIds }
 					: new { serverId, userId };
 
@@ -172,7 +172,7 @@ namespace DotemMatchmaker.Context {
 
 			await command.ExecuteNonQueryAsync();
 			var sessions = await GetSessionsAsync(connection, sessionId);
-			return sessions.Single();
+			return sessions.First();
 		}
 
 
@@ -183,7 +183,7 @@ namespace DotemMatchmaker.Context {
 		}
 
 		private async Task<IEnumerable<SessionDetails>> GetSessionsAsync(SqliteConnection connection, params Guid[] sessionIds) {
-			if (sessionIds == null || !sessionIds.Any()) return Enumerable.Empty<SessionDetails>();
+			if (!sessionIds.Any()) return Enumerable.Empty<SessionDetails>();
 			var sql = @$"{sessionSelectBase}
 				WHERE 
 					session.sessionId IN ${nameof(sessionIds)};
@@ -231,6 +231,8 @@ namespace DotemMatchmaker.Context {
 		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveGamesAsync(string userId, string serverId, params string[] gameIds) {
 			using (var connection = GetOpenConnection()) {
 				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds)).Values.Distinct();
+				if (!aliasIds.Any()) { return (Enumerable.Empty<SessionDetails>(), Enumerable.Empty<Guid>()); }
+
 				var sql = @$"
 					SELECT 
 						session.sessionId
@@ -345,11 +347,11 @@ namespace DotemMatchmaker.Context {
 				.Select(g => {
 					var session = g.First();
 					session.UserExpires = g
-						.Select(s => s.UserExpires.Single())
+						.Where(s => s.UserExpires.Any())
+						.Select(s => s.UserExpires.First())
 						.ToDictionary();
 					return session;
 				});
-
 		}
 		#endregion
 
@@ -361,7 +363,7 @@ namespace DotemMatchmaker.Context {
 		}
 
 		private async Task<Dictionary<string, string>> GetGameAliasesAsync(SqliteConnection connection, string serverId, params string[]? gameIds) {
-			if (gameIds == null || !gameIds.Any()) return new();
+			if (gameIds == null || !gameIds.Any()) { return new(); }
 			var ids = gameIds.Select(s => s.ToLower()).Distinct();
 			var sql = $@"
 				SELECT 
@@ -376,12 +378,11 @@ namespace DotemMatchmaker.Context {
 			var result = await connection.QueryAsync(sql, new { ids, serverId });
 
 			var aliasIds = result
-				?.Where(row => row?.gameId != null && row?.aliasGameId != null)
-				?.ToDictionary(
+				.Where(row => row?.gameId != null && row?.aliasGameId != null)
+				.ToDictionary(
 					row => (string)row.gameId,
 					row => (string)row.aliasGameId
-				)
-				?? new();
+				);
 
 			foreach (var id in ids) {
 				aliasIds.TryAdd(id, id.ToLower());
@@ -533,7 +534,7 @@ namespace DotemMatchmaker.Context {
 		public async Task<Dictionary<string, string>> GetGameNamesAsync(string serverId, params string[]? gameIds) {
 			using (var connection = GetOpenConnection()) {
 				if (gameIds == null || !gameIds.Any()) return new();
-				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray()))?.Values.Distinct()!;
+				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray())).Values.Distinct()!;
 
 				var sql = @"
 					SELECT 
@@ -555,7 +556,7 @@ namespace DotemMatchmaker.Context {
 					)
 					?? new();
 
-				foreach(var id in aliasIds) {
+				foreach (var id in aliasIds) {
 					if (names.ContainsKey(id)) { continue; }
 					names.Add(id, id);
 				}
@@ -648,8 +649,7 @@ namespace DotemMatchmaker.Context {
 			if (!gameIds.Any()) { return; }
 			using (var connection = GetOpenConnection()) {
 
-				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray()))?.Values.Distinct();
-				if (aliasIds == null) { return; }
+				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray())).Values.Distinct();
 
 				var command = connection.CreateCommand();
 				command.CommandText = @$"
@@ -704,8 +704,7 @@ namespace DotemMatchmaker.Context {
 		public async Task DeleteMatchListensAsync(string serverId, string userId, params string[] gameIds) {
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();
-				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray()))?.Values.Distinct();
-				if (aliasIds == null) { return; }
+				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray())).Values.Distinct();
 
 				command.CommandText = @$"
 					DELETE FROM

@@ -233,7 +233,8 @@ namespace DotemDiscord.Handlers {
 
 				if (!existingSessions.Any()) { continue; }
 
-				new SearchMessage(_client, _matchmaker, _discordContext, message, existingSessions, connection.UserId, deleteOnStop: connection.UserId == null);
+				var searchMessage = new SearchMessage(_client, _matchmaker, _discordContext, message, existingSessions, connection.UserId, deleteOnStop: connection.UserId == null);
+				searchMessage.ForceMessageUpdate();
 			}
 		}
 		public async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {

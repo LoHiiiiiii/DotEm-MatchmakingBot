@@ -56,8 +56,7 @@ namespace DotemDiscord.Handlers {
 						HandleSuggestion(session, userString, searchMessage.Message);
 					}
 				}
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				Console.WriteLine(e);
 			} finally {
 				suggestionSemaphore.Release();
@@ -69,14 +68,13 @@ namespace DotemDiscord.Handlers {
 			try {
 				if (!added.Any()) { return; }
 
-				foreach(var session in added) {
+				foreach (var session in added) {
 					if (sessionsToSuggest.Contains(session)) { continue; }
 					sessionsToSuggest.Add(session);
 				}
 			} catch (Exception e) {
 				Console.WriteLine(e);
-			}
-			finally {
+			} finally {
 				suggestionSemaphore.Release();
 			}
 		}
@@ -93,7 +91,7 @@ namespace DotemDiscord.Handlers {
 			if (user == null) { return; }
 
 			var result = await _buttonMessageHandler.GetSuggestionResultAsync(userId, [session], durationMinutes: null, allowCancel: true, searchParams: null);
-			if (result  == null) { return; }
+			if (result == null) { return; }
 			if (result is SessionResult.FailedToJoin) {
 				var structure = MessageStructures.GetFailedJoinStructure();
 				try {
@@ -104,7 +102,7 @@ namespace DotemDiscord.Handlers {
 				}
 				return;
 			}
-			
+
 			if (result is SessionResult.Matched matched) {
 				var structure = MessageStructures.GetMatchedStructure(
 					matched.matchedSession.GameId,
