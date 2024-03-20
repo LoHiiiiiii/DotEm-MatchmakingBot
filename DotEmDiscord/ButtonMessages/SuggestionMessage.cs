@@ -149,7 +149,6 @@ namespace DotemDiscord.ButtonMessages {
 			}
 		}
 
-
 		private async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
 			try {
 				if (!updated.Any() && !stopped.Any()) { return; }

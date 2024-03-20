@@ -137,7 +137,7 @@ namespace DotemDiscord.TextCommands {
 
 			while (result is SessionResult.Suggestions suggestions) {
 				if (responseMessage == null) {
-					var inputStructure = MessageStructures.GetSuggestionsWaitStructure();
+					var inputStructure = MessageStructures.GetSuggestionsWaitStructure(true);
 					responseMessage = await Context.Message.ReplyAsync(
 						text: inputStructure.content,
 						components: inputStructure.components,

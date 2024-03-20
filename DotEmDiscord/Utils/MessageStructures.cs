@@ -78,8 +78,8 @@ namespace DotemDiscord.Utils {
 
 				if (label.Length > BUTTON_LABEL_MAXLENGTH - playerCount.Length) {
 					label = $"{details.GameId}{description}";
-					if (label.Length > BUTTON_LABEL_MAXLENGTH - playerCount.Length) {
-						label = label.Substring(0, BUTTON_LABEL_MAXLENGTH - playerCount.Length) + "...";
+					if (label.Length > BUTTON_LABEL_MAXLENGTH - playerCount.Length - 3) {
+						label = label.Substring(0, BUTTON_LABEL_MAXLENGTH - playerCount.Length - 3) + "...";
 					}
 				}
 
@@ -126,8 +126,8 @@ namespace DotemDiscord.Utils {
 			return ("Suggestions handled.", null);
 		}
 
-		public static (string? content, MessageComponent? components) GetSuggestionsWaitStructure() {
-			return ("Waiting user to handle suggestions...", null);
+		public static (string? content, MessageComponent? components) GetSuggestionsWaitStructure(bool dms = false) {
+			return ($"Waiting for user to handle suggestion{(dms ? " (Check your DMs)" : "")}.", null);
 		}
 
 		public static (string? content, MessageComponent? components) GetNoSearchStructure() {

@@ -38,7 +38,7 @@ namespace DotemMatchmaker.Context {
 					);
 
 					CREATE TABLE IF NOT EXISTS gameName (
-						gameId TEXT UNIQUE NOT NULL,
+						gameId TEXT NOT NULL,
 						serverId TEXT NOT NULL,
 						name TEXT,
                         UNIQUE(gameId, serverId)
@@ -91,7 +91,7 @@ namespace DotemMatchmaker.Context {
 					WHERE 
 						session.serverId = $serverId
 						AND userId != $userId
-						{(aliasIds.Any() ? "" : "AND session.GameId IN $gameIds")};
+						{(aliasIds.Any() ? "AND session.gameId IN $gameIds" : "")};
 				";
 
 				object parameters = aliasIds.Any()
@@ -334,24 +334,31 @@ namespace DotemMatchmaker.Context {
 
 		private async Task<IEnumerable<SessionDetails>> SessionQueryAsync(SqliteConnection connection, string sql, object? parameters = null) {
 			// rowid sqlite implicit primarykey
-			var result = await connection.QueryAsync<SessionDetails, (int rowid, string? userId, DateTimeOffset expireTime), SessionDetails>(sql, (session, userExpire) => {
-				if (userExpire.userId != null) {
-					session.UserExpires.Add(userExpire.userId, userExpire.expireTime);
-				}
-				return session;
-			}, param: parameters,
-				splitOn: "rowid");
+			var result = await connection.QueryAsync(sql, parameters);
 
-			return result
-				.GroupBy(s => s.SessionId)
-				.Select(g => {
-					var session = g.First();
-					session.UserExpires = g
-						.Where(s => s.UserExpires.Any())
-						.Select(s => s.UserExpires.First())
-						.ToDictionary();
-					return session;
-				});
+			Dictionary<string, SessionDetails> sessions = new();
+			foreach (var row in result) {
+				if (!sessions.ContainsKey(row.sessionId)) {
+					var session = new SessionDetails(
+						(string)row.sessionId,
+						(string)row.gameId,
+						(string?)row.name,
+						(string)row.serverId,
+						(long)row.maxPlayerCount,
+						(string?)row.Description
+					);
+					sessions.Add(row.sessionId, session);
+				}
+				if (!DateTimeOffset.TryParse((string)row.expireTime, out var offset)) {
+					continue;
+				}
+
+				sessions[(string)row.sessionId].UserExpires.TryAdd(
+					(string)row.userId,
+					offset);
+			}
+
+			return sessions.Values.Where(sd => sd.UserExpires.Any());
 		}
 		#endregion
 
@@ -364,7 +371,7 @@ namespace DotemMatchmaker.Context {
 
 		private async Task<Dictionary<string, string>> GetGameAliasesAsync(SqliteConnection connection, string serverId, params string[]? gameIds) {
 			if (gameIds == null || !gameIds.Any()) { return new(); }
-			var ids = gameIds.Select(s => s.ToLower()).Distinct();
+			var ids = gameIds.Select(s => s.ToLowerInvariant()).Distinct();
 			var sql = $@"
 				SELECT 
 					gameId, aliasGameId
@@ -385,7 +392,7 @@ namespace DotemMatchmaker.Context {
 				);
 
 			foreach (var id in ids) {
-				aliasIds.TryAdd(id, id.ToLower());
+				aliasIds.TryAdd(id, id);
 			}
 
 			return aliasIds;
@@ -557,8 +564,7 @@ namespace DotemMatchmaker.Context {
 					?? new();
 
 				foreach (var id in aliasIds) {
-					if (names.ContainsKey(id)) { continue; }
-					names.Add(id, id);
+					names.TryAdd(id, id);
 				}
 
 				return names;

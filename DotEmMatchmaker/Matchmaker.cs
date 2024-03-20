@@ -1,5 +1,6 @@
 ﻿using DotemMatchmaker.Context;
 using DotemModel;
+using System.Text.RegularExpressions;
 using SearchParameters = (string gameId, int playerCount, string? description);
 
 namespace DotemMatchmaker {
@@ -45,7 +46,7 @@ namespace DotemMatchmaker {
 				try {
 					var aliases = await _context.GetGameAliasesAsync(serverId, searchParameters.Select(s => s.gameId).ToArray());
 					var uniqueSearches = searchParameters
-						.Select(attempt => (gameId: aliases[attempt.gameId], attempt.playerCount, attempt.description))
+						.Select(attempt => (gameId: aliases[attempt.gameId.ToLowerInvariant()], attempt.playerCount, attempt.description))
 						.Distinct()
 						.ToHashSet();
 					var matchingGames = await _context.GetUserJoinableSessionsAsync(serverId, userId, aliases.Values);
@@ -60,7 +61,7 @@ namespace DotemMatchmaker {
 								match.UserExpires.Count == match.MaxPlayerCount - 1
 								&& !uniqueSearches.Contains((match.GameId, match.MaxPlayerCount, match.Description)));
 
-							var exact = playableExactMatches.First(); // Not single because there might be two exact with a description
+							var exact = playableExactMatches.First();
 
 							if (playableExactMatches.All(match =>
 									match.GameId == exact.GameId
@@ -97,36 +98,55 @@ namespace DotemMatchmaker {
 						}
 					}
 
-					// No suggestions or exact descriptionless matches
+					// No suggestions or exact descriptionless playable matches
 
 					var waitingSessions = new List<SessionDetails>();
 					var joinedSessions = await _context.GetUserExistingSessionsAsync(serverId, userId);
+					var exactDescriptionlessNotPlayable = matchingGames
+						.Where(match =>
+							match.UserExpires.Count < match.MaxPlayerCount - 1
+							&& match.Description == null
+							&& uniqueSearches.Contains((match.GameId, match.MaxPlayerCount, match.Description)))
+						.Distinct();
 
 					foreach (var attempt in uniqueSearches) {
+
 						var existingSession = joinedSessions
 							.Where(match =>
 								match.GameId == attempt.gameId
 								&& match.MaxPlayerCount == attempt.playerCount
 								&& match.Description == attempt.description)
-							.SingleOrDefault();
+							.FirstOrDefault();
+
+
+						if (existingSession == null) {
+							existingSession = exactDescriptionlessNotPlayable
+							.Where(match =>
+								match.GameId == attempt.gameId
+								&& match.MaxPlayerCount == attempt.playerCount
+								&& match.Description == attempt.description)
+							.FirstOrDefault();
+						}
 
 						if (existingSession != null) {
 							var updated = await _context.JoinSessionAsync(existingSession.SessionId, userId, expireTime);
 							if (updated == null) continue;
 							waitingSessions.Add(updated);
 							updatedSessions.Add(updated);
-						} else {
-							var newSearch = await _context.CreateSessionAsync(
-								serverId: serverId,
-								userId: userId,
-								gameId: attempt.gameId,
-								maxPlayerCount: attempt.playerCount,
-								description: attempt.description,
-								expireTime: expireTime
-							);
-							waitingSessions.Add(newSearch);
-							addedSessions.Add(newSearch);
+							continue;
 						}
+
+						var newSearch = await _context.CreateSessionAsync(
+							serverId: serverId,
+							userId: userId,
+							gameId: attempt.gameId,
+							maxPlayerCount: attempt.playerCount,
+							description: attempt.description,
+							expireTime: expireTime
+						);
+						waitingSessions.Add(newSearch);
+						addedSessions.Add(newSearch);
+
 					}
 
 					return new SessionResult.Waiting(waitingSessions);

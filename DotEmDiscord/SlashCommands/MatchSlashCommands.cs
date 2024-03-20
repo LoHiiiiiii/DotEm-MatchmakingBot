@@ -73,7 +73,7 @@ namespace DotemDiscord.SlashCommands {
 					);
 				}
 
-				(var waitedForInput, var content, var components) = await HandleSearchAsync(
+				(var createNewMessage, var content, var components) = await HandleSearchAsync(
 					message: message,
 					gameIds: customParams ? idArray : channelDefaults.gameIds,
 					duration: customParams ? time : time ?? channelDefaults.duration,
@@ -81,7 +81,8 @@ namespace DotemDiscord.SlashCommands {
 					description: description
 				);
 
-				if (waitedForInput) {
+				if (createNewMessage) {
+					await DeleteOriginalResponseAsync();
 					await FollowupAsync(
 						text: content,
 						components: components
@@ -120,7 +121,7 @@ namespace DotemDiscord.SlashCommands {
 
 				IUserMessage message = await GetOriginalResponseAsync();
 
-				(var waitedForInput, var content, var components) = await HandleSearchAsync(
+				(var createNewMessage, var content, var components) = await HandleSearchAsync(
 					message: message,
 					gameIds: result.Value.gameIds,
 					duration: result.Value.duration,
@@ -128,7 +129,8 @@ namespace DotemDiscord.SlashCommands {
 					description: result.Value.description
 				);
 
-				if (waitedForInput) {
+				if (createNewMessage) {
+					await DeleteOriginalResponseAsync();
 					await FollowupAsync(
 						text: content,
 						components: components
@@ -146,7 +148,7 @@ namespace DotemDiscord.SlashCommands {
 			}
 		}
 
-		private async Task<(bool waitedForInput, string? content, MessageComponent? components)> HandleSearchAsync(
+		private async Task<(bool createNewMessage, string? content, MessageComponent? components)> HandleSearchAsync(
 			IUserMessage message,
 			string[] gameIds,
 			int? duration,
@@ -169,16 +171,16 @@ namespace DotemDiscord.SlashCommands {
 			);
 
 			var structure = MessageStructures.GetNoSearchStructure();
-			var waitedForInput = false;
+			var waited = false;
 
 			while (result is SessionResult.Suggestions suggestions) {
-				if (!waitedForInput) {
+				if (!waited) {
 					var inputStructure = MessageStructures.GetSuggestionsWaitStructure();
 					await ModifyOriginalResponseAsync(x => {
 						x.Content = inputStructure.content;
 						x.Components = inputStructure.components;
 					});
-					waitedForInput = true;
+					waited = true;
 				}
 
 				result = await _buttonMessageHandler.GetSuggestionResultAsync(
@@ -193,18 +195,21 @@ namespace DotemDiscord.SlashCommands {
 				);
 			}
 
+			var createNewMessage = false;
 			if (result is SessionResult.Matched matched) {
 				structure = MessageStructures.GetMatchedStructure(
 					matched.matchedSession.GameId,
 					matched.matchedSession.UserExpires.Keys,
 					matched.matchedSession.Description);
+
+				createNewMessage = waited;
 			}
 
 			if (result is SessionResult.Waiting waiting) {
 				await _buttonMessageHandler.CreateSearchMessageAsync(message, waiting.waits, Context.User.Id);
 				structure = MessageStructures.GetWaitingStructure(waiting.waits, Context.User.Id);
 			}
-			return (waitedForInput, structure.content, structure.components);
+			return (createNewMessage, structure.content, structure.components);
 		}
 
 		[EnabledInDm(false)]
