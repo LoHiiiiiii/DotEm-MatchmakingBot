@@ -103,7 +103,10 @@ namespace DotemDiscord.ButtonMessages {
 		}
 
 		private async Task UpdateMessageAsync() {
-			if (ExitResult != null) {
+			if (
+				ExitResult != null 
+				|| (!JoinableSessions.Any() && SearchParams == null)
+			) {
 				await DeleteMessage();
 				Release();
 				return;

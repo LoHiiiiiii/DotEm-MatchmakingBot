@@ -333,7 +333,6 @@ namespace DotemMatchmaker.Context {
 		}
 
 		private async Task<IEnumerable<SessionDetails>> SessionQueryAsync(SqliteConnection connection, string sql, object? parameters = null) {
-			// rowid sqlite implicit primarykey
 			var result = await connection.QueryAsync(sql, parameters);
 
 			Dictionary<string, SessionDetails> sessions = new();
@@ -345,7 +344,7 @@ namespace DotemMatchmaker.Context {
 						(string?)row.name,
 						(string)row.serverId,
 						(long)row.maxPlayerCount,
-						(string?)row.Description
+						(string?)row.description
 					);
 					sessions.Add(row.sessionId, session);
 				}

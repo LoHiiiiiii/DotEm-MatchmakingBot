@@ -39,7 +39,7 @@ namespace DotemDiscord.Utils {
 
 			if (searchId != null) {
 				builder.WithButton(
-					label: "Search",
+					label: "Proceed with original searches",
 					style: ButtonStyle.Success,
 					customId: searchId.ToString(),
 					row: 1
@@ -48,7 +48,7 @@ namespace DotemDiscord.Utils {
 
 			if (allowCancel) {
 				builder.WithButton(
-					label: "Ignore",
+					label: "Ignore suggestion",
 					style: ButtonStyle.Danger,
 					customId: CANCEL_ID
 				);
@@ -135,7 +135,7 @@ namespace DotemDiscord.Utils {
 		}
 
 		public static (string? content, MessageComponent? components) GetFailedJoinStructure() {
-			return ("Failed to join. The session might have just expired or gotten canceled or filled.", null);
+			return ("Failed to join. The session might have just expired, gotten canceled or filled.", null);
 		}
 
 		public static (string? content, MessageComponent? components) GetForbiddenStructure(string text) {
