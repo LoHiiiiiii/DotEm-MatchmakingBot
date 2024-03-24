@@ -57,6 +57,7 @@ namespace DotemDiscord
 				.AddSingleton(interactionConfig)
                 .AddSingleton<InteractionService>()
 				.AddSingleton<ButtonMessageHandler>()
+				.AddSingleton<ButtonCleanser>()
 				.AddSingleton<MatchmakingBoardHandler>()
 				.AddSingleton<MatchListenHandler>()
 				.AddSingleton<TextCommandHandler>()
@@ -74,6 +75,7 @@ namespace DotemDiscord
 				_serviceProvider.GetRequiredService<MatchmakingContext>().Initialize();
 				_serviceProvider.GetRequiredService<ExtensionContext>().Initialize();
 				_serviceProvider.GetRequiredService<MatchListenHandler>().Initialize();
+				_serviceProvider.GetRequiredService<ButtonCleanser>().Initialize();
 				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync();
                 await _serviceProvider.GetRequiredService<MatchExpirer>().StartClearingExpiredJoins();
 				await _serviceProvider.GetRequiredService<SlashCommandHandler>().InstallSlashCommandsAsync();
