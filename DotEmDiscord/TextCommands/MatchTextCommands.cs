@@ -70,7 +70,7 @@ namespace DotemDiscord.TextCommands {
 					gameIds: customParams ? gameIds : channelDefaults.gameIds,
 					duration: customParams ? time : time ?? channelDefaults.duration,
 					maxPlayerCount: customParams ? maxPlayerCount : maxPlayerCount ?? channelDefaults.maxPlayerCount,
-					description: description
+					description: customParams ? description : description ?? channelDefaults.description
 				);
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
@@ -172,7 +172,7 @@ namespace DotemDiscord.TextCommands {
 
 			if (result is SessionResult.FailedToSuggest) {
 				structure = (
-					content: "Couldn't suggest. Suggestions from text commands require the bot to direct message you.", 
+					content: "Couldn't suggest. Suggestions from text commands require the bot to direct message you.",
 					components: null
 				);
 			}
@@ -234,7 +234,7 @@ namespace DotemDiscord.TextCommands {
 					(var updated, var stopped) = await _matchmaker.LeaveGamesAsync(serverId, userId, gameIds);
 					var leftIds = updated
 						.Select(s => s.SessionId)
-						.Concat(stopped)
+						.Concat(stopped.Keys)
 						.ToHashSet();
 
 					var gameNames = userSessions
@@ -271,11 +271,23 @@ namespace DotemDiscord.TextCommands {
 			{ "-c", CommandType.PlayerCount }
 		};
 
+		HashSet<string> platforms = new() {
+			"ps",
+			"psn",
+			"ps4",
+			"ps5",
+			"pc",
+			"steam",
+			"xbox",
+			"fightcade"
+		};
+
 		(string[] gameIds, int? time, int? playerCount, string? description) ParseCommand(string[] split) {
 			List<string> games = new List<string>();
 			List<int> playerCounts = new List<int>();
 			List<int> times = new List<int>();
 			string? description = null;
+			HashSet<string> mentionedPlatforms = new();
 
 			var currentType = CommandType.None;
 			for (int i = 0; i < split.Length; i++) {
@@ -285,6 +297,9 @@ namespace DotemDiscord.TextCommands {
 				}
 				if (currentType == CommandType.Description) {
 					description = string.Join(" ", split, i, split.Length - i);
+					if (mentionedPlatforms.Any()) {
+						description += $" ({MessageStructures.GetNaturalLanguageString(mentionedPlatforms.ToArray())})";
+					}
 					break;
 				} else if (currentType == CommandType.PlayerCount) {
 					if (!int.TryParse(split[i], out var parsed)) { continue; }
@@ -292,13 +307,19 @@ namespace DotemDiscord.TextCommands {
 				} else if (currentType == CommandType.Time) {
 					if (!int.TryParse(split[i], out var parsed)) { continue; }
 					times.Add(parsed);
-				} else {
-					if (int.TryParse(split[i], out var parsed)) {
-						times.Add(parsed);
-						continue;
+				} else if (int.TryParse(split[i], out var parsed)) {
+					times.Add(parsed);
+				} else if (platforms.Contains(split[i].ToLowerInvariant())) {
+					if (!mentionedPlatforms.Contains(split[i])) {
+						mentionedPlatforms.Add(split[i]);
 					}
+				} else {
 					games.Add(split[i]);
 				}
+			}
+
+			if (description == null && mentionedPlatforms.Any()) {
+				description += $"{MessageStructures.GetNaturalLanguageString(mentionedPlatforms.ToArray())}";
 			}
 
 			return (

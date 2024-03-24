@@ -1,6 +1,6 @@
 ﻿using DotemMatchmaker.Context;
 using DotemModel;
-using System.Text.RegularExpressions;
+using DotemMatchmaker.Utils;
 using SearchParameters = (string gameId, int playerCount, string? description);
 
 namespace DotemMatchmaker {
@@ -24,13 +24,17 @@ namespace DotemMatchmaker {
 			ExpireClearIntervalMilliseconds = expireClearIntervalMinutes * 1000 * 60;
 		}
 
-		public delegate void SessionChangedEvent(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped);
+		public delegate void SessionChangedEvent(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped);
 
 		public event SessionChangedEvent? SessionChanged;
 
+		public delegate void SessionAddedEvent(IEnumerable<SessionDetails> added);
+
+		public event SessionAddedEvent? SessionAdded;
+
 		private SemaphoreSlim sessionSemaphore = new SemaphoreSlim(1, 1);
 
-		public async Task<SessionResult> SearchSessionAsync(string serverId, string userId, DateTimeOffset expireTime,
+		private async Task<SessionResult> SearchSessionAsync(string serverId, string userId, DateTimeOffset expireTime,
 			bool allowSuggestions = true, params SearchParameters[] searchParameters
 		) {
 			if (!searchParameters.Any()) return new SessionResult.NoAction();
@@ -41,7 +45,7 @@ namespace DotemMatchmaker {
 
 				var addedSessions = new List<SessionDetails>();
 				var updatedSessions = clear.updated.ToList();
-				var stoppedSessions = clear.stopped.ToList();
+				var stoppedSessions = clear.stopped.ToDictionary(id => id, id => SessionStopReason.Expired);
 
 				try {
 					var aliases = await _context.GetGameAliasesAsync(serverId, searchParameters.Select(s => s.gameId).ToArray());
@@ -76,7 +80,9 @@ namespace DotemMatchmaker {
 
 									(var updated, var stopped) = await _context.LeaveAllSessionsAsync(joined.UserExpires.Keys.ToArray());
 									if (updated.Any()) updatedSessions.AddRange(updated);
-									if (stopped.Any()) stoppedSessions.AddRange(stopped);
+									if (stopped.Any()) stoppedSessions.AddRange(stopped.Select(id => 
+										(id, joined.SessionId == id ? SessionStopReason.Joined : SessionStopReason.JoinedOther))
+									);
 
 									return new SessionResult.Matched(joined);
 								}
@@ -151,9 +157,11 @@ namespace DotemMatchmaker {
 
 					return new SessionResult.Waiting(waitingSessions);
 				} finally {
-					if (addedSessions.Any() || updatedSessions.Any() || stoppedSessions.Any()) {
+					if (addedSessions.Any()) {
+						SessionAdded?.Invoke(addedSessions);
+					}
+					if (updatedSessions.Any() || stoppedSessions.Any()) {
 						SessionChanged?.Invoke(
-							added: addedSessions,
 							updated: updatedSessions,
 							stopped: stoppedSessions
 						);
@@ -168,7 +176,7 @@ namespace DotemMatchmaker {
 				var clear = await _context.ClearExpiredJoinsAsync();
 
 				var updatedSessions = clear.updated.ToList();
-				var stoppedSessions = clear.stopped.ToList();
+				var stoppedSessions = clear.stopped.ToDictionary(id => id, id => SessionStopReason.Expired);
 				try {
 
 					var session = await _context.JoinSessionAsync(sessionId, userId, expireTime);
@@ -181,12 +189,11 @@ namespace DotemMatchmaker {
 
 					(var updated, var stopped) = await _context.LeaveAllSessionsAsync(session.UserExpires.Keys.ToArray());
 					if (updated.Any()) updatedSessions.AddRange(updated);
-					if (stopped.Any()) stoppedSessions.AddRange(stopped);
+					if (stopped.Any()) stoppedSessions.AddRange(stopped.Select(id => (id, id == sessionId ? SessionStopReason.Joined : SessionStopReason.JoinedOther)));
 					return new SessionResult.Matched(session);
 				} finally {
 					if (updatedSessions.Any() || stoppedSessions.Any()) {
 						SessionChanged?.Invoke(
-							added: [],
 							updated: updatedSessions,
 							stopped: stoppedSessions
 						);
@@ -199,64 +206,64 @@ namespace DotemMatchmaker {
 			await sessionSemaphore.WaitAsync();
 			try {
 				var (updatedSessions, stoppedSessions) = await _context.ClearExpiredJoinsAsync();
-				if (!updatedSessions.Any() && !stoppedSessions.Any()) { return; }
+				var stopped = stoppedSessions.ToDictionary(id => id, id => SessionStopReason.Expired);
+				if (!updatedSessions.Any() && !stopped.Any()) { return; }
 				SessionChanged?.Invoke(
-					added: [],
 					updated: updatedSessions,
-					stopped: stoppedSessions
+					stopped: stopped
 				);
 			} finally { sessionSemaphore.Release(); }
 		}
 
 		#region Leaving Sessions
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveSessionsAsync(string userId, params Guid[] sessionIds) {
+		public async Task<(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped)> LeaveSessionsAsync(string userId, params Guid[] sessionIds) {
 			await sessionSemaphore.WaitAsync();
 			try {
-				(var updatedMatches, var stoppedMatches) = await _context.LeaveSessionsAsync(userId, sessionIds);
+				(var updatedSessions, var stoppedSessions) = await _context.LeaveSessionsAsync(userId, sessionIds);
+				var stopped = stoppedSessions.ToDictionary(id => id, id => SessionStopReason.Canceled);
 				try {
-					return (updatedMatches, stoppedMatches);
+					return (updatedSessions, stopped);
 				} finally {
-					if (updatedMatches.Any() || stoppedMatches.Any()) {
+					if (updatedSessions.Any() || stopped.Any()) {
 						SessionChanged?.Invoke(
-							added: [],
-							updated: updatedMatches ?? [],
-							stopped: stoppedMatches ?? []
+							updated: updatedSessions ?? [],
+							stopped: stopped ?? []
 						);
 					}
 				}
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveGamesAsync(string serverId, string userId, params string[] gameIds) {
+		public async Task<(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped)> LeaveGamesAsync(string serverId, string userId, params string[] gameIds) {
 			await sessionSemaphore.WaitAsync();
 			try {
-				(var updatedMatches, var stoppedMatches) = await _context.LeaveGamesAsync(userId, serverId, gameIds);
+				(var updatedSessions, var stoppedSessions) = await _context.LeaveGamesAsync(userId, serverId, gameIds);
+				var stopped = stoppedSessions.ToDictionary(id => id, id => SessionStopReason.Canceled);
 				try {
-					return (updatedMatches, stoppedMatches);
+					return (updatedSessions, stopped);
 				} finally {
-					if (updatedMatches.Any() || stoppedMatches.Any()) {
+					if (updatedSessions.Any() || stopped.Any()) {
 						SessionChanged?.Invoke(
-							added: [],
-							updated: updatedMatches ?? [],
-							stopped: stoppedMatches ?? []
+							updated: updatedSessions ?? [],
+							stopped: stopped ?? []
 						);
 					}
 				}
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveAllPlayerSessionsAsync(string serverId, string userId) {
+		public async Task<(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped)> LeaveAllPlayerSessionsAsync(string serverId, string userId) {
 			await sessionSemaphore.WaitAsync();
 			try {
-				(var updatedMatches, var stoppedMatches) = await _context.LeaveAllSessionsAsync(userId);
+				(var updatedSessions, var stoppedSessions) = await _context.LeaveAllSessionsAsync(userId);
+				var stopped = stoppedSessions.ToDictionary(id => id, id => SessionStopReason.Canceled);
 				try {
-					return (updatedMatches, stoppedMatches);
+					return (updatedSessions, stopped);
 				} finally {
-					if (updatedMatches.Any() || stoppedMatches.Any()) {
+					if (updatedSessions.Any() || stopped.Any()) {
 						SessionChanged?.Invoke(
-							added: [],
-							updated: updatedMatches ?? [],
-							stopped: stoppedMatches ?? []
+							updated: updatedSessions ?? [],
+							stopped: stopped ?? []
 						);
 					}
 				}
@@ -289,7 +296,6 @@ namespace DotemMatchmaker {
 				var updated = await _context.AddGameAliasAsync(serverId, aliasId, gameIds);
 				if (!updated.Any()) { return; }
 				SessionChanged?.Invoke(
-					added: [],
 					updated: updated,
 					stopped: []
 					);
@@ -319,7 +325,6 @@ namespace DotemMatchmaker {
 				var updated = await _context.AddGameNameAsync(serverId, gameName, gameId);
 				if (!updated.Any()) { return; }
 				SessionChanged?.Invoke(
-					added: [],
 					updated: updated,
 					stopped: []
 					);
@@ -353,8 +358,14 @@ namespace DotemMatchmaker {
 			bool allowSuggestions = true,
 			params string[] gameIds
 		) {
+			var gameDefaults = await _context.GetGameDefaultsAsync(serverId, gameIds);
+
 			var searchParams = gameIds
-				.Select(id => (id, maxPlayerCount ?? DefaultMaxPlayerCount, description))
+				.Select(id => (
+					id, 
+					maxPlayerCount ?? (gameDefaults.ContainsKey(id) ? (gameDefaults[id].maxPlayerCount ?? DefaultMaxPlayerCount) : DefaultMaxPlayerCount), 
+					description ?? (gameDefaults.ContainsKey(id) ? gameDefaults[id].description : null)
+				))
 				.ToArray();
 
 			return await SearchSessionAsync(
@@ -365,7 +376,6 @@ namespace DotemMatchmaker {
 				searchParameters: searchParams
 			);
 		}
-
 
 		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, int? joinDuration = null)
 			=> await TryJoinSessionAsync(userId, sessionId, DateTimeOffset.Now.AddMinutes(joinDuration ?? DefaultJoinDurationMinutes));

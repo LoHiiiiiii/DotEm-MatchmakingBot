@@ -152,14 +152,14 @@ namespace DotemDiscord.ButtonMessages {
 			}
 		}
 
-		private async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+		private async void HandleSessionChanged(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped) {
 			try {
 				if (!updated.Any() && !stopped.Any()) { return; }
 
 				await MessageSemaphore.WaitAsync();
 				try {
 					var modified = false;
-					foreach (var id in stopped) {
+					foreach (var id in stopped.Keys) {
 						if (!JoinableSessions.ContainsKey(id)) continue;
 						modified = true;
 						JoinableSessions.Remove(id);

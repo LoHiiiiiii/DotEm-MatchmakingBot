@@ -1,6 +1,7 @@
 ﻿using DotemModel;
 using Microsoft.Data.Sqlite;
 using Dapper;
+using System.Xml.Linq;
 
 namespace DotemMatchmaker.Context {
 	public class MatchmakingContext {
@@ -58,6 +59,14 @@ namespace DotemMatchmaker.Context {
 						expireTime TEXT,
                         UNIQUE(serverId, userId, gameId)
 					);
+					
+					CREATE TABLE IF NOT EXISTS gameDefault (
+						gameId TEXT NOT NULL,
+						serverId TEXT NOT NULL,
+						maxPlayerCount INT,
+						description TEXT,
+                        UNIQUE(gameId, serverId)
+					)
 				";
 				command.ExecuteNonQuery();
 			}
@@ -493,6 +502,13 @@ namespace DotemMatchmaker.Context {
 					WHERE
 						gameId IN ({gameIdString})
 						AND serverId = $serverId;
+
+					UPDATE OR IGNORE gameDefault
+					SET 
+						gameId = $aliasGameId
+					WHERE
+						gameId IN ({gameIdString})
+						AND serverId = $serverId;
 				";
 
 				command.Parameters.AddRange(ids.Select((id, i) => new SqliteParameter("$s" + i, id)));
@@ -629,7 +645,7 @@ namespace DotemMatchmaker.Context {
 						($gameId,$serverId,$name)
 					ON CONFLICT (gameId, serverId) 
 					DO UPDATE SET 
-						gameId=excluded.gameId;
+						name=excluded.name;
 				";
 
 				command.Parameters.AddWithValue("$gameId", id);
@@ -730,6 +746,96 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 		#endregion
+
+		#region Game Defaults
+		public async Task<Dictionary<string, (int? maxPlayerCount, string? description)>> GetGameDefaultsAsync(string serverId, params string[] gameIds) {
+			if (!gameIds.Any()) {
+				return new Dictionary<string, (int? maxPlayerCount, string? description)>();
+			}
+			return await GetGameDefaultsAsyncInternal(serverId, gameIds);
+		}
+		private async Task<Dictionary<string, (int? maxPlayerCount, string? description)>> GetGameDefaultsAsyncInternal(string serverId, params string[] gameIds) {
+			using (var connection = GetOpenConnection()) {
+				var ids = await GetGameAliasesAsync(connection, serverId, gameIds);
+				var sql = @$"
+				SELECT 
+					gameId, maxPlayerCount, description
+				FROM 
+					gameDefault
+				WHERE
+					serverId = $serverId
+					{(ids.Values.Any() ? "AND gameId IN $gameIds" : "")};
+				";
+
+				var result = await connection.QueryAsync(sql, new { serverId, gameIds = ids.Values.Distinct() });
+
+				var values = result
+					.Where(row => row.gameId != null)
+					.ToDictionary(
+						row => (string)row.gameId,
+						row => ((int?)row.maxPlayerCount, (string?)row.description)
+					);
+
+				return ids
+					.Where(pair => values.ContainsKey(pair.Key))
+					.ToDictionary(
+						pair => pair.Key,
+						pair => values[pair.Value]
+					);
+			}
+		}
+
+		public async Task<Dictionary<string, (int? maxPlayerCount, string? description)>> GetAllGameDefaultsAsync(string serverId)
+			=> await GetGameDefaultsAsyncInternal(serverId);
+
+		public async Task DeletGameDefaultsAsync(string serverId, params string[] gameIds) {
+			if (!gameIds.Any()) { return; }
+			using (var connection = GetOpenConnection()) {
+				var command = connection.CreateCommand();
+				var ids = (await GetGameAliasesAsync(connection, serverId)).Values.Distinct();
+
+				command.CommandText = $@"
+					DELETE FROM 
+						gameDefault
+					WHERE
+						serverId = $serverId
+						AND gameId IN ({string.Join(",", ids.Select((_, i) => "$s" + i))});
+				";
+
+				command.Parameters.AddWithValue("$serverId", serverId);
+				command.Parameters.AddRange(ids.Select((id, i) => new SqliteParameter("$s" + i, id)));
+
+				await command.ExecuteNonQueryAsync();
+			}
+		}
+
+		public async Task SetGameDefaultAsync(string serverId, string gameId, int? maxPlayerCount, string? description) {
+			using (var connection = GetOpenConnection()) {
+				var command = connection.CreateCommand();
+
+				var id = (await GetGameAliasesAsync(connection, serverId, gameId))[gameId];
+
+				command.CommandText = @"
+					INSERT INTO 
+						gameDefault
+					VALUES
+						($gameId,$serverId,$maxPlayerCount,$description)
+					ON CONFLICT (gameId, serverId) 
+					DO UPDATE SET 
+						maxPlayerCount=excluded.maxPlayerCount,
+						description=excluded.description;
+				";
+
+				command.Parameters.AddWithValue("$gameId", id);
+				command.Parameters.AddWithValue("$serverId", serverId);
+				command.Parameters.AddWithValue("$maxPlayerCount", maxPlayerCount == null ? DBNull.Value : maxPlayerCount);
+				command.Parameters.AddWithValue("$description", description == null ? DBNull.Value : description);
+
+				await command.ExecuteNonQueryAsync();
+			}
+		}
+		#endregion
+
 
 		private SqliteConnection GetOpenConnection() {
 			var connection = new SqliteConnection($"Data Source={DataSource}");

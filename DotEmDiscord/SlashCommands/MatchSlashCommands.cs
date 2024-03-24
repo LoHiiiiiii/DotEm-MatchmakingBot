@@ -78,7 +78,7 @@ namespace DotemDiscord.SlashCommands {
 					gameIds: customParams ? idArray : channelDefaults.gameIds,
 					duration: customParams ? time : time ?? channelDefaults.duration,
 					maxPlayerCount: customParams ? maxPlayerCount : maxPlayerCount ?? channelDefaults.maxPlayerCount,
-					description: description
+					description: customParams ? description : description ?? channelDefaults.description
 				);
 
 				if (createNewMessage) {
@@ -244,7 +244,7 @@ namespace DotemDiscord.SlashCommands {
 
 					var leftIds = updated
 						.Select(s => s.SessionId)
-						.Concat(stopped)
+						.Concat(stopped.Keys)
 						.ToHashSet();
 
 					var gameNames = userSessions

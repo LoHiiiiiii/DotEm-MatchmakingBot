@@ -20,7 +20,7 @@ namespace DotemDiscord.Handlers {
 			_discordContext = discordContext;
 			_extensionContext = extensionContext;
 			_matchmaker = matchmaker;
-			_matchmaker.SessionChanged += HandleSessionChanged;
+			_matchmaker.SessionAdded += HandleSessionAdded;
 			_buttonMessageHandler = buttonMessageHandler;
 			_buttonMessageHandler.SearchMessageCreated += HandleNewSearchMessages;
 		}
@@ -76,7 +76,7 @@ namespace DotemDiscord.Handlers {
 			}
 		}
 
-		public async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+		public async void HandleSessionAdded(IEnumerable<SessionDetails> added) {
 			await postBoardSemaphore.WaitAsync();
 			try {
 				if (!added.Any()) { return; }

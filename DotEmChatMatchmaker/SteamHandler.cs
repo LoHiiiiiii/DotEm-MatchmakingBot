@@ -15,6 +15,7 @@ namespace DotemExtensions {
 			public string? LobbyLink { get; init; }
 			public string? GameName { get; init; }
 			public bool SteamIdBad { get; init; }
+			public bool ProbablyPrivate { get; init; }
 		}
 
 		public async Task<SteamResult> GetLobbyLink(ulong steamId) {
@@ -33,9 +34,15 @@ namespace DotemExtensions {
 				var summary = (JObject?) players.First();
 				if (summary == null) { return new SteamResult(); }
 
+				var hasName = summary.ContainsKey("personaname");
 				var gameId = summary.ContainsKey("gameid") ? summary["gameid"] : null;
 				var lobbySteamId = summary.ContainsKey("lobbysteamid") ? summary["lobbysteamid"]?.ToString() : null;
 				var gameName = summary.ContainsKey("gameextrainfo") ? summary["gameextrainfo"]?.ToString() : null;
+
+				if (hasName && gameId == null) {
+					return new SteamResult() { Successful = true, ProbablyPrivate = true };
+				}
+
 				var lobbyLink = (gameId != null  && lobbySteamId != null) 
 					? $"{LobbyLinkPrefix}/{gameId}/{lobbySteamId}/{steamId}"
 					: null;

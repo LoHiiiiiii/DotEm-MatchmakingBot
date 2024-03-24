@@ -118,12 +118,18 @@ namespace DotemDiscord.Utils {
 			return ($"No longer searching for {GetNaturalLanguageString(gameNames)}.", null);
 		}
 
-		public static (string? content, MessageComponent? components) GetCanceledStructure() {
-			return ("Canceled searching for everything.", null);
+		public static (string? content, MessageComponent? components) GetSessionStoppedStructure(SessionStopReason? stopReason = null) {
+			return stopReason switch { 
+				SessionStopReason.Joined => ("Match found.", null),
+				SessionStopReason.JoinedOther => ("Player matched in another search.", null),
+				SessionStopReason.Expired => ("Search expired.", null),
+				SessionStopReason.Canceled => ("Player stopped searching.", null),
+				_ => GetStoppedStructure()
+			};
 		}
 
-		public static (string? content, MessageComponent? components) GetSuggestionsFinishedStructure() {
-			return ("Suggestions handled.", null);
+		public static (string? content, MessageComponent? components) GetCanceledStructure() {
+			return ("Canceled searching for everything.", null);
 		}
 
 		public static (string? content, MessageComponent? components) GetSuggestionsWaitStructure(bool dms = false) {

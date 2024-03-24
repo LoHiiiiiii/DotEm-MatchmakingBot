@@ -237,11 +237,11 @@ namespace DotemDiscord.Handlers {
 				searchMessage.ForceMessageUpdate();
 			}
 		}
-		public async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+		public async void HandleSessionChanged(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped) {
 			try {
 				if (!stopped.Any()) { return; }
 
-				await _discordContext.DeleteSessionConnectionAsync(stopped);
+				await _discordContext.DeleteSessionConnectionAsync(stopped.Keys);
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 			}

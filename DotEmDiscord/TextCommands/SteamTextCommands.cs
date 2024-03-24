@@ -31,6 +31,12 @@ namespace DotemDiscord.TextCommands {
 					await Context.Message.ReplyAsync(text: $"Your registered Steam Id ({id}) wasn't found on Steam.");
 					return;
 				}
+				if (result.ProbablyPrivate) {
+					await Context.Message.ReplyAsync(text: 
+						$"Some info was found, but not the private info that is required for the link. Check your stema privacy settings."
+					);
+					return;
+				}
 				if (result.LobbyLink == null) {
 					await Context.Message.ReplyAsync(text:"No lobby found.");
 					return;

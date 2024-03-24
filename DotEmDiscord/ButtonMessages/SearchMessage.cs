@@ -52,6 +52,8 @@ namespace DotemDiscord.ButtonMessages {
 					if (!Searches.TryGetValue(guid, out var search)) { return; }
 
 					var stringId = component.User.Id.ToString();
+					SessionStopReason? stopReason = null;
+
 					if (search.UserExpires.ContainsKey(stringId)) {
 						(var updated, var stopped) = await _matchmaker.LeaveSessionsAsync(stringId, search.SessionId);
 
@@ -60,16 +62,18 @@ namespace DotemDiscord.ButtonMessages {
 							Searches[session.SessionId] = session;
 						}
 
-						foreach (var id in stopped) {
+						foreach (var id in stopped.Keys) {
 							if (Searches.ContainsKey(id)) Searches.Remove(id);
 							await _context.DeleteSessionConnectionAsync(Message.Id, id);
+
+							stopReason = stopReason.GetHigherPriorityReason(stopped[id]);
 						}
 
 						if (!Searches.Any()) {
 							await ReleaseAsync();
 						}
 
-						await UpdateMessageAsync();
+						await UpdateMessageAsync(stopReason);
 						await component.DeferAsync();
 						return;
 					}
@@ -86,13 +90,10 @@ namespace DotemDiscord.ButtonMessages {
 						);
 						ephemeral = false;
 						await ReleaseAsync();
-						var message = ReplyMessage != null ? ReplyMessage : Message;
-						await message.Channel.SendMessageAsync(text: structure.content, components: structure.components);
-						await Message.DeleteAsync();
-						return;
+						stopReason = SessionStopReason.Joined;
 					}
 
-					await UpdateMessageAsync();
+					await UpdateMessageAsync(stopReason);
 					await component.DeferAsync();
 
 					if (result is SessionResult.Waiting) return;
@@ -124,7 +125,7 @@ namespace DotemDiscord.ButtonMessages {
 		}
 
 		// Remember to await semaphore before calling!
-		private async Task UpdateMessageAsync() {
+		private async Task UpdateMessageAsync(SessionStopReason? stopReason = null) {
 			var stillSearching = Searches.Any();
 
 			if (!stillSearching && DeleteOnStop) {
@@ -133,7 +134,7 @@ namespace DotemDiscord.ButtonMessages {
 			}
 			var structure = stillSearching
 				? MessageStructures.GetWaitingStructure(Searches.Values, CreatorId)
-				: MessageStructures.GetStoppedStructure();
+				: MessageStructures.GetSessionStoppedStructure(stopReason);
 
 			await Message.ModifyAsync(x => {
 				x.Content = structure.content;
@@ -163,24 +164,26 @@ namespace DotemDiscord.ButtonMessages {
 			} finally { messageSemaphore.Release(); }
 		}
 
-		private async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+		private async void HandleSessionChanged(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped) {
 			try {
 				if (!updated.Any() && !stopped.Any()) { return; }
 
 				await messageSemaphore.WaitAsync();
 				try {
+					SessionStopReason? stopReason = null;
 					var modified = false;
-					foreach (var id in stopped) {
+					foreach (var id in stopped.Keys) {
 						if (!Searches.ContainsKey(id)) continue;
 						modified = true;
 						Searches.Remove(id);
+						stopReason = stopReason.GetHigherPriorityReason(stopped[id]);
 					}
 					foreach (var session in updated) {
 						if (!Searches.ContainsKey(session.SessionId)) { continue; }
 						modified = true;
 						Searches[session.SessionId] = session;
 					}
-					if (modified) { await UpdateMessageAsync(); }
+					if (modified) { await UpdateMessageAsync(stopReason); }
 				} finally { messageSemaphore.Release(); }
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);

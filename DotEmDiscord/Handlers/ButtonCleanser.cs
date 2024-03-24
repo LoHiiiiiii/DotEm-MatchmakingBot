@@ -1,4 +1,6 @@
-﻿using Discord.WebSocket;
+﻿using Discord;
+using Discord.Net;
+using Discord.WebSocket;
 using DotemDiscord.Utils;
 
 namespace DotemDiscord.Handlers {
@@ -33,7 +35,14 @@ namespace DotemDiscord.Handlers {
 			if (message == null) { return; }
 			await Task.Delay(TIMEOUT_MILLISECONDS);
 			if (component.HasResponded) { return; }
-			await message.DeleteAsync();
+			try {
+				await message.DeleteAsync();
+			} catch (Exception e) {
+				if (e is HttpException http && http.DiscordCode == DiscordErrorCode.UnknownMessage) {
+					return;
+				}
+				throw;
+			}
 		}
 	}
 }

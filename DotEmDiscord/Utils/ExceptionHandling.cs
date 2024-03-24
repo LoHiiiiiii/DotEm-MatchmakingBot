@@ -32,7 +32,7 @@ namespace DotemDiscord.Utils {
 		}
 
 		public static void ReportExceptionToFile(Exception e) {
-			var output = e.StackTrace;
+			var output = $"{e.GetType().Name}: {e.Message}{e.StackTrace}";
 			Console.WriteLine(output);
 			using (var writer = File.AppendText(OUTPUT_FILE)) {
 				writer.WriteLine(output);

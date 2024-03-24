@@ -14,6 +14,7 @@ namespace DotemMatchmaker {
 		public MatchExpirer(Matchmaker matchmaker) {
 			_matchmaker = matchmaker;
 			matchmaker.SessionChanged += HandleUpdatedExpire;
+			matchmaker.SessionAdded += HandleAddedExpire;
 		}
 
 		public async Task StartClearingExpiredJoins() {
@@ -35,7 +36,7 @@ namespace DotemMatchmaker {
 
 		private async Task TryClearExpiredsAsync() {
 			bool handleTask = false;
-			
+
 			await expirationSemaphore.WaitAsync();
 			try {
 				if (!Expirations.Any()) { return; }
@@ -51,7 +52,7 @@ namespace DotemMatchmaker {
 				FirstExpiration = null;
 				if (!Expirations.Any()) { return; }
 				handleTask = true;
-			} finally { 
+			} finally {
 				expirationSemaphore.Release();
 				if (handleTask) { HandleExpirationTask(); }
 			}
@@ -81,9 +82,9 @@ namespace DotemMatchmaker {
 				ExpirationSource = new CancellationTokenSource();
 				token = ExpirationSource.Token;
 				FirstExpiration = Expirations.First();
-			} finally { 
+			} finally {
 				expirationSemaphore.Release();
-				if (clearExpireds) { 
+				if (clearExpireds) {
 					_ = TryClearExpiredsAsync();
 				}
 			}
@@ -101,15 +102,21 @@ namespace DotemMatchmaker {
 			_ = TryClearExpiredsAsync();
 		}
 
-		private async void HandleUpdatedExpire(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
-			var newExpires = added.Concat(updated)
-				.SelectMany(s => s.UserExpires.Values);
+		private void HandleUpdatedExpire(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped) {
+			if (!updated.Any()) { return; }
+			HandleNewExpireTimes(updated);
+		}
 
-			if (!newExpires.Any()) { return; }
+		private void HandleAddedExpire(IEnumerable<SessionDetails> added) {
+			if (!added.Any()) { return; }
+			HandleNewExpireTimes(added);
+		}
+
+		private async void HandleNewExpireTimes(IEnumerable<SessionDetails> details) {
 			await expirationSemaphore.WaitAsync();
 			try {
 				Expirations = Expirations
-					.Concat(newExpires)
+					.Concat(details.SelectMany(sd => sd.UserExpires.Values))
 					.Distinct()
 					.ToList();
 			} finally { expirationSemaphore.Release(); }

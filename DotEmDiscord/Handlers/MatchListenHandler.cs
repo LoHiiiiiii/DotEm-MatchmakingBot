@@ -63,7 +63,7 @@ namespace DotemDiscord.Handlers {
 			}
 		}
 
-		public async void HandleSessionChanged(IEnumerable<SessionDetails> added, IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped) {
+		public async void HandleSessionAdded(IEnumerable<SessionDetails> added) {
 			await suggestionSemaphore.WaitAsync();
 			try {
 				if (!added.Any()) { return; }
@@ -80,7 +80,7 @@ namespace DotemDiscord.Handlers {
 		}
 
 		public void Initialize() {
-			_matchmaker.SessionChanged += HandleSessionChanged;
+			_matchmaker.SessionAdded += HandleSessionAdded;
 			_buttonMessageHandler.SearchMessageCreated += HandleNewSearchMessage;
 		}
 
