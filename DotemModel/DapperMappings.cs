@@ -1,6 +1,4 @@
-﻿
-
-using Dapper;
+﻿using Dapper;
 using System.Data;
 
 namespace DotemModel {
@@ -11,24 +9,10 @@ namespace DotemModel {
 	}
 
 	public class DateTimeOffsetHandler : SqliteTypeHandler<DateTimeOffset> {
-		public override DateTimeOffset Parse(object value) {
-			try {
-				return DateTimeOffset.Parse((string)value);
-			} catch (Exception e) {
-				Console.WriteLine($"DateTimeOffset parsing error for value {value}: {e.Message}");
-				return default;
-			}
-		}
+		public override DateTimeOffset Parse(object value) => DateTimeOffset.Parse((string)value);
 	}
 
 	public class GuidHandler : SqliteTypeHandler<Guid> {
-		public override Guid Parse(object value) {
-			try {
-				return Guid.Parse((string)value);
-			} catch (Exception e) {
-				Console.WriteLine($"Guid parsing error for value {value}: {e.Message}");
-				return default;
-			}
-		}
+		public override Guid Parse(object value) => Guid.Parse((string)value);
 	}
 }

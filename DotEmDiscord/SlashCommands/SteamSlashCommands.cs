@@ -50,7 +50,7 @@ namespace DotemDiscord.SlashCommands {
 				});
 
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -71,7 +71,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = $"Added a steam id to this user.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -86,7 +86,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = $"Removed steam-id from this user.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}

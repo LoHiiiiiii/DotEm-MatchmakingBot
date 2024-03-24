@@ -243,7 +243,7 @@ namespace DotemDiscord.Handlers {
 
 				await _discordContext.DeleteSessionConnectionAsync(stopped);
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 			}
 		}
 	}

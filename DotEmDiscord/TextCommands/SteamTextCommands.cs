@@ -38,7 +38,7 @@ namespace DotemDiscord.TextCommands {
 				var prefix = result.GameName != null ? $"{result.GameName} - " : "";
 				await Context.Message.ReplyAsync(text: $"{prefix}{result.LobbyLink}");
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}

@@ -1,5 +1,6 @@
 ﻿using Discord.Commands;
 using Discord.WebSocket;
+using DotemDiscord.Utils;
 using System.Reflection;
 
 namespace DotemDiscord.Handlers {
@@ -46,8 +47,8 @@ namespace DotemDiscord.Handlers {
 					argPos,
 					_serviceProvider
 				);
-			} catch (Exception exception) {
-				Console.WriteLine($"Error: {exception}");
+			} catch (Exception e) {
+				ExceptionHandling.ReportExceptionToFile(e);
 			}
 		}
 	}

@@ -109,7 +109,7 @@ namespace DotemDiscord.ButtonMessages {
 					);
 				} finally { messageSemaphore.Release(); }
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(component);
 
@@ -183,7 +183,7 @@ namespace DotemDiscord.ButtonMessages {
 					if (modified) { await UpdateMessageAsync(); }
 				} finally { messageSemaphore.Release(); }
 			} catch (Exception e) {
-				Console.WriteLine(e.Message);
+				ExceptionHandling.ReportExceptionToFile(e);
 			}
 		}
 	}

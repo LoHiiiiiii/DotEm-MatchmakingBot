@@ -3,7 +3,7 @@ using DotemModel;
 using DotemExtensions;
 using DotemDiscord.ButtonMessages;
 using DotemDiscord.Context;
-using Discord.WebSocket;
+using DotemDiscord.Utils;
 
 namespace DotemDiscord.Handlers {
 	public class MatchmakingBoardHandler {
@@ -70,7 +70,7 @@ namespace DotemDiscord.Handlers {
 				}
 			}
 			catch (Exception e) {
-				Console.WriteLine(e.Message);
+				ExceptionHandling.ReportExceptionToFile(e);
 			} finally {
 				postBoardSemaphore.Release();
 			}
@@ -86,7 +86,7 @@ namespace DotemDiscord.Handlers {
 					sessionsToPostToBoard.Add(session);
 				}
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 			}
 			finally {
 				postBoardSemaphore.Release();

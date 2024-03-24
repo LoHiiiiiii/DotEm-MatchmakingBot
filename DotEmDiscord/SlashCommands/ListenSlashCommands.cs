@@ -52,7 +52,7 @@ namespace DotemDiscord.SlashCommands {
 					}.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -91,7 +91,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = $"Stopped listening {natural}.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}

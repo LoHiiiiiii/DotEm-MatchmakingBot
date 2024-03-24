@@ -56,7 +56,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = "Set the defaults for channel.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -75,7 +75,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = "Removed the defaults.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -103,7 +103,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = response;
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -121,7 +121,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = "Set the channel as a matchmaking board.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -138,7 +138,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = "Channel is no longer a matchmaking board.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}

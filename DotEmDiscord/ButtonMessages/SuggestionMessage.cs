@@ -89,7 +89,7 @@ namespace DotemDiscord.ButtonMessages {
 				await UpdateMessageAsync();
 				await component.DeferAsync();
 			} catch (Exception e) {
-				Console.WriteLine(e.Message);
+				ExceptionHandling.ReportExceptionToFile(e);
 			} finally { MessageSemaphore.Release(); }
 		}
 
@@ -134,7 +134,7 @@ namespace DotemDiscord.ButtonMessages {
 					});
 				}
 			} catch (Exception e) {
-				Console.WriteLine(e.Message);
+				ExceptionHandling.ReportExceptionToFile(e);
 			}
 		}
 
@@ -172,7 +172,7 @@ namespace DotemDiscord.ButtonMessages {
 					if (modified) { await UpdateMessageAsync(); }
 				} finally { MessageSemaphore.Release(); }
 			} catch (Exception e) {
-				Console.WriteLine(e.Message);
+				ExceptionHandling.ReportExceptionToFile(e);
 			}
 		}
 

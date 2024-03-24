@@ -51,7 +51,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = $"Added Alias ID {splitAlias.Single()} for Game ID{(splitGames.Length > 1 ? "s" : "")} {response}.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -118,7 +118,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = $"Added Game Name {gameName} for Game ID {id}.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -148,7 +148,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = $"Removed Alias ID{pluralSuffix} from Game ID{pluralSuffix} {response}.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -178,7 +178,7 @@ namespace DotemDiscord.SlashCommands {
 					x.Content = $"Removed Game Name{pluralSuffix} from Game ID{pluralSuffix} {response}.";
 				});
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
@@ -244,7 +244,7 @@ namespace DotemDiscord.SlashCommands {
 					}
 				}
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}

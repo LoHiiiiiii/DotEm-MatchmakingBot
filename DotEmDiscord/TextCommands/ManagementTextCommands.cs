@@ -26,7 +26,7 @@ namespace DotemDiscord.TextCommands {
 				if (e is HttpException http) {
 					if (http.DiscordCode == DiscordErrorCode.CannotSendMessageToUser) { return; }
 				}
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}

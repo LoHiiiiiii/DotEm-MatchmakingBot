@@ -53,7 +53,7 @@ namespace DotemDiscord.SlashCommands {
 					text: $"Listening for {natural} {(hours == null ? "forever" : $"for {hours} hours")}."
 				);
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}
@@ -97,7 +97,7 @@ namespace DotemDiscord.SlashCommands {
 					text: $"Stopped listening {natural}."
 				);
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}

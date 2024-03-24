@@ -57,7 +57,7 @@ namespace DotemDiscord.Handlers {
 					}
 				}
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 			} finally {
 				suggestionSemaphore.Release();
 			}
@@ -73,7 +73,7 @@ namespace DotemDiscord.Handlers {
 					sessionsToSuggest.Add(session);
 				}
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 			} finally {
 				suggestionSemaphore.Release();
 			}

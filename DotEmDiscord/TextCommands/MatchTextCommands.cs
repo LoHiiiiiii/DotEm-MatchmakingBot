@@ -73,7 +73,7 @@ namespace DotemDiscord.TextCommands {
 					description: description
 				);
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}
@@ -111,7 +111,7 @@ namespace DotemDiscord.TextCommands {
 					description: result.Value.description
 				);
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}
@@ -251,7 +251,7 @@ namespace DotemDiscord.TextCommands {
 					allowedMentions: AllowedMentions.None
 				);
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
 				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}
