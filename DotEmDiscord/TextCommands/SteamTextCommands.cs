@@ -33,7 +33,7 @@ namespace DotemDiscord.TextCommands {
 				}
 				if (result.ProbablyPrivate) {
 					await Context.Message.ReplyAsync(text: 
-						$"Some info was found, but not the private info that is required for the link. Check your stema privacy settings."
+						$"Some info was found, but not the private info that is required for the link. Check your steam privacy settings."
 					);
 					return;
 				}

@@ -42,7 +42,7 @@ namespace DotemDiscord.SlashCommands {
 				}
 				if (result.ProbablyPrivate) {
 					await ModifyOriginalResponseAsync(x => {
-						x.Content = $"Some info was found, but not the private info that is required for the link. Check your stema privacy settings.";
+						x.Content = $"Some info was found, but not the private info that is required for the link. Check your steam privacy settings.";
 					});
 					return;
 				}

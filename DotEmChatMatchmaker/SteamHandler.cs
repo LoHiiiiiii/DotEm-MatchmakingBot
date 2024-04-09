@@ -35,17 +35,19 @@ namespace DotemExtensions {
 				if (summary == null) { return new SteamResult(); }
 
 				var hasName = summary.ContainsKey("personaname");
+				var hasTimeCreated = summary.ContainsKey("timecreated");
 				var gameId = summary.ContainsKey("gameid") ? summary["gameid"] : null;
 				var lobbySteamId = summary.ContainsKey("lobbysteamid") ? summary["lobbysteamid"]?.ToString() : null;
 				var gameName = summary.ContainsKey("gameextrainfo") ? summary["gameextrainfo"]?.ToString() : null;
 
-				if (hasName && gameId == null) {
-					return new SteamResult() { Successful = true, ProbablyPrivate = true };
-				}
-
 				var lobbyLink = (gameId != null  && lobbySteamId != null) 
 					? $"{LobbyLinkPrefix}/{gameId}/{lobbySteamId}/{steamId}"
 					: null;
+
+
+				if (lobbyLink == null && hasName && !hasTimeCreated) {
+					return new SteamResult() { Successful = true, ProbablyPrivate = true };
+				}
 
 				return new SteamResult() {
 					Successful = true,
