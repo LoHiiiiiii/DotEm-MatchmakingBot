@@ -15,7 +15,7 @@ namespace DotemDiscord.TextCommands {
 		}
 
 		[Command("lobby", RunMode = RunMode.Async)]
-		public async Task GetSteamLobbyTextCommandAsync(string _) { // Param so recognized even if extra stuff
+		public async Task GetSteamLobbyTextCommandAsync(string? _ = null) { // Param so recognized even if extra stuff
 			try {
 				var id = await _extensionContext.GetSteamUserAsync(Context.User.Id.ToString());
 				if (id == null) {

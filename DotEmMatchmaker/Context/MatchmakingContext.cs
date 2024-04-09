@@ -170,7 +170,7 @@ namespace DotemMatchmaker.Context {
 					SELECT
 						sessionId
 					FROM
-						userJoin
+						session
 					WHERE
 						sessionId = $sessionId
 				";

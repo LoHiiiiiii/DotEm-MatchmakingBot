@@ -2,6 +2,7 @@
 using DotemModel;
 using DotemMatchmaker.Utils;
 using SearchParameters = (string gameId, int playerCount, string? description);
+using System.Data;
 
 namespace DotemMatchmaker {
 	public class Matchmaker {
@@ -164,6 +165,11 @@ namespace DotemMatchmaker {
 							description: attempt.description,
 							expireTime: expireTime
 						);
+
+						if (newSearch == null) {
+							throw new NoNullAllowedException("Created session was null.");
+						}
+
 						waitingSessions.Add(newSearch);
 						addedSessions.Add(newSearch);
 
