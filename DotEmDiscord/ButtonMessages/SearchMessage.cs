@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.Net;
 using Discord.WebSocket;
 using DotemDiscord.Context;
 using DotemDiscord.Utils;
@@ -63,7 +64,7 @@ namespace DotemDiscord.ButtonMessages {
 						}
 
 						foreach (var id in stopped.Keys) {
-							if (Searches.ContainsKey(id)) Searches.Remove(id);
+							if (Searches.ContainsKey(id)) { Searches.Remove(id); }
 							await _context.DeleteSessionConnectionAsync(Message.Id, id);
 
 							stopReason = stopReason.GetHigherPriorityReason(stopped[id]);
@@ -92,7 +93,6 @@ namespace DotemDiscord.ButtonMessages {
 						await ReleaseAsync();
 						stopReason = SessionStopReason.Joined;
 					}
-
 					await UpdateMessageAsync(stopReason);
 					await component.DeferAsync();
 
@@ -112,6 +112,8 @@ namespace DotemDiscord.ButtonMessages {
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
+				if (e is HttpException unknown && unknown.DiscordCode == DiscordErrorCode.UnknownInteraction) return;
+				if (e is HttpException acknowledged && acknowledged.DiscordCode == DiscordErrorCode.InteractionHasAlreadyBeenAcknowledged) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(component);
 
 			}

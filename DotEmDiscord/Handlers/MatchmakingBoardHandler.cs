@@ -45,10 +45,20 @@ namespace DotemDiscord.Handlers {
 		private async void HandleNewSearchMessages(SearchMessage searchMessage) {
 			await postBoardSemaphore.WaitAsync();
 			try {
-				var added = searchMessage.Searches.Values
-					.Where(sessionsToPostToBoard.Contains);
 
-				if (!added.Any()) { return; }
+				if (!sessionsToPostToBoard.Any()) { return; }
+
+				if (!searchMessage.Searches.Values.Any(sessionsToPostToBoard.Contains)) { return; }
+
+
+				var existing = await _matchmaker.GetSessionsAsync(sessionsToPostToBoard.Select(sd => sd.SessionId).ToArray());
+
+				sessionsToPostToBoard = existing.ToHashSet();
+
+				var postables = searchMessage.Searches.Values.Where(sessionsToPostToBoard.Contains);
+
+				if (!postables.Any()) { return; }
+
 
 				var boards = (await _extensionContext.GetMatchmakingBoardsAsync())
 					.Select<(string serverId, string channelId), (string serverId, ulong? channelId)>(pair => (
@@ -61,7 +71,7 @@ namespace DotemDiscord.Handlers {
 
 				if (boards == null || !boards.Any()) { return; }
 
-				foreach (var session in added) {
+				foreach (var session in postables) {
 					sessionsToPostToBoard.Remove(session);
 					if (!boards.ContainsKey(session.ServerId)) { continue; }
 					foreach (var channel in boards[session.ServerId]) {

@@ -5,6 +5,7 @@ using Discord;
 using DotemDiscord.Handlers;
 using DotemMatchmaker;
 using DotemExtensions;
+using Discord.Net;
 
 namespace DotemDiscord.TextCommands {
 	public class MatchTextCommands : ModuleBase<SocketCommandContext> {
@@ -53,24 +54,27 @@ namespace DotemDiscord.TextCommands {
 				if (maxPlayerCount != null) maxPlayerCount = ContentFilter.CapPlayerCount((int)maxPlayerCount);
 				if (description != null) description = ContentFilter.CapSymbolCount(description);
 
-				if (customParams) {
-					await _extensionContext.SetUserRematchParameters(
-						serverId: Context.Guild.Id.ToString(),
-						userId: Context.User.Id.ToString(),
-						gameIds: string.Join(" ", gameIds),
-						maxPlayerCount: maxPlayerCount,
-						duration: time,
-						description: description
-					);
-				}
-
 				var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamatersAsync(Context.Channel.Id.ToString());
 
+				var searchIds = customParams ? gameIds : channelDefaults.gameIds;
+				var searchDuration = customParams ? time : time ?? channelDefaults.duration;
+				var searchPlayerCount = customParams ? maxPlayerCount : maxPlayerCount ?? channelDefaults.maxPlayerCount;
+				var searchDescription = customParams ? description : description ?? channelDefaults.description;
+
+				await _extensionContext.SetUserRematchParameters(
+					serverId: Context.Guild.Id.ToString(),
+					userId: Context.User.Id.ToString(),
+					gameIds: string.Join(" ", searchIds),
+					maxPlayerCount: searchPlayerCount,
+					duration: searchDuration,
+					description: searchDescription
+				); ;
+				
 				await HandleSearchAsync(
-					gameIds: customParams ? gameIds : channelDefaults.gameIds,
-					duration: customParams ? time : time ?? channelDefaults.duration,
-					maxPlayerCount: customParams ? maxPlayerCount : maxPlayerCount ?? channelDefaults.maxPlayerCount,
-					description: customParams ? description : description ?? channelDefaults.description
+					gameIds: searchIds,
+					duration: searchDuration,
+					maxPlayerCount: searchPlayerCount,
+					description: searchDescription
 				);
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
@@ -113,6 +117,8 @@ namespace DotemDiscord.TextCommands {
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
+				if (e is HttpException unknown && unknown.DiscordCode == DiscordErrorCode.UnknownInteraction) return;
+				if (e is HttpException acknowledged && acknowledged.DiscordCode == DiscordErrorCode.InteractionHasAlreadyBeenAcknowledged) return;
 				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
 			}
 		}

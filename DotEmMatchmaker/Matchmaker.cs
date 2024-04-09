@@ -97,10 +97,24 @@ namespace DotemMatchmaker {
 								);
 							}
 						} else if (allowSuggestions) {
-							return new SessionResult.Suggestions(
-								suggestedSessions: matchingGames,
-								allowWait: true
-							);
+
+							var hasSuggestable = false;
+
+							// Do not suggest if matching games have no descriptions and search has a description
+							foreach(var search in uniqueSearches) {
+								 hasSuggestable = matchingGames
+									.Any(sd => sd.GameId == search.gameId
+										&& (search.description == null || sd.Description != null));
+
+								if (hasSuggestable) { break; }
+							}
+
+							if (hasSuggestable) {
+								return new SessionResult.Suggestions(
+									suggestedSessions: matchingGames,
+									allowWait: true
+								);
+							}
 						}
 					}
 

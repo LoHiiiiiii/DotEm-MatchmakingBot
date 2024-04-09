@@ -94,7 +94,7 @@ namespace DotemDiscord.SlashCommands {
 					: "everything";
 
 				await Context.Message.ReplyAsync(
-					text: $"Stopped listening {natural}."
+					text: $"Stopped listening for {natural}."
 				);
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);

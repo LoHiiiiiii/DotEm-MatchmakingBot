@@ -62,23 +62,26 @@ namespace DotemDiscord.SlashCommands {
 
 				var customParams = idArray.Any(s => !string.IsNullOrWhiteSpace(s) && !string.IsNullOrWhiteSpace(s));
 
-				if (customParams) {
-					await _extensionContext.SetUserRematchParameters(
-						serverId: Context.Guild.Id.ToString(),
-						userId: Context.User.Id.ToString(),
-						gameIds: string.Join(" ", idArray),
-						maxPlayerCount: maxPlayerCount,
-						duration: time,
-						description: description
-					);
-				}
+				var searchIds = customParams ? idArray : channelDefaults.gameIds;
+				var searchDuration = customParams ? time : time ?? channelDefaults.duration;
+				var searchPlayerCount = customParams ? maxPlayerCount : maxPlayerCount ?? channelDefaults.maxPlayerCount;
+				var searchDescription = customParams ? description : description ?? channelDefaults.description;
+
+				await _extensionContext.SetUserRematchParameters(
+					serverId: Context.Guild.Id.ToString(),
+					userId: Context.User.Id.ToString(),
+					gameIds: string.Join(" ", searchIds),
+					maxPlayerCount: searchPlayerCount,
+					duration: searchDuration,
+					description: searchDescription
+				); ;
 
 				(var createNewMessage, var content, var components) = await HandleSearchAsync(
 					message: message,
-					gameIds: customParams ? idArray : channelDefaults.gameIds,
-					duration: customParams ? time : time ?? channelDefaults.duration,
-					maxPlayerCount: customParams ? maxPlayerCount : maxPlayerCount ?? channelDefaults.maxPlayerCount,
-					description: customParams ? description : description ?? channelDefaults.description
+					gameIds: searchIds,
+					duration: searchDuration,
+					maxPlayerCount: searchPlayerCount,
+					description: searchDescription
 				);
 
 				if (createNewMessage) {

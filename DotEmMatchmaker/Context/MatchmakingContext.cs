@@ -165,6 +165,22 @@ namespace DotemMatchmaker.Context {
 		}
 
 		private async Task<SessionDetails?> JoinSessionAsync(SqliteConnection connection, Guid sessionId, string userId, DateTimeOffset expireTime) {
+
+			var sql = $@"
+					SELECT
+						sessionId
+					FROM
+						userJoin
+					WHERE
+						sessionId = $sessionId
+				";
+
+			var id = await connection.QueryAsync<Guid>(sql, new { sessionId });
+
+			if (id == null || !id.Any()) {
+				return null;
+			}
+
 			var command = connection.CreateCommand();
 
 			command.CommandText = @"
@@ -181,7 +197,7 @@ namespace DotemMatchmaker.Context {
 
 			await command.ExecuteNonQueryAsync();
 			var sessions = await GetSessionsAsync(connection, sessionId);
-			return sessions.First();
+			return sessions.FirstOrDefault();
 		}
 
 
