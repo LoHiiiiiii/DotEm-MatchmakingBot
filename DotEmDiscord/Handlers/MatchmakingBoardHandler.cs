@@ -13,7 +13,7 @@ namespace DotemDiscord.Handlers {
 		public readonly Matchmaker _matchmaker;
 		public readonly ButtonMessageHandler _buttonMessageHandler;
 
-		private HashSet<SessionDetails> sessionsToPostToBoard = new HashSet<SessionDetails>();
+		private Dictionary<Guid, SessionDetails> sessionsToPostToBoard = new();
 		private SemaphoreSlim postBoardSemaphore = new SemaphoreSlim(1, 1);
 
 		public MatchmakingBoardHandler(DiscordContext discordContext, ExtensionContext extensionContext, Matchmaker matchmaker, ButtonMessageHandler buttonMessageHandler) {
@@ -48,14 +48,14 @@ namespace DotemDiscord.Handlers {
 
 				if (!sessionsToPostToBoard.Any()) { return; }
 
-				if (!searchMessage.Searches.Values.Any(sessionsToPostToBoard.Contains)) { return; }
+				if (!searchMessage.Searches.Values.Any(sd => sessionsToPostToBoard.ContainsKey(sd.SessionId))) { return; }
 
 
-				var existing = await _matchmaker.GetSessionsAsync(sessionsToPostToBoard.Select(sd => sd.SessionId).ToArray());
+				var existing = await _matchmaker.GetSessionsAsync(sessionsToPostToBoard.Keys.ToArray());
 
-				sessionsToPostToBoard = existing.ToHashSet();
+				sessionsToPostToBoard = existing.ToDictionary(sd => sd.SessionId);
 
-				var postables = searchMessage.Searches.Values.Where(sessionsToPostToBoard.Contains);
+				var postables = searchMessage.Searches.Values.Where(sd => sessionsToPostToBoard.ContainsKey(sd.SessionId));
 
 				if (!postables.Any()) { return; }
 
@@ -72,7 +72,7 @@ namespace DotemDiscord.Handlers {
 				if (boards == null || !boards.Any()) { return; }
 
 				foreach (var session in postables) {
-					sessionsToPostToBoard.Remove(session);
+					sessionsToPostToBoard.Remove(session.SessionId);
 					if (!boards.ContainsKey(session.ServerId)) { continue; }
 					foreach (var channel in boards[session.ServerId]) {
 						await _buttonMessageHandler.CreateSearchMessageAsync(channel, [session], replyMessage: searchMessage.Message);
@@ -92,8 +92,8 @@ namespace DotemDiscord.Handlers {
 				if (!added.Any()) { return; }
 
 				foreach (var session in added) {
-					if (sessionsToPostToBoard.Contains(session)) { continue; }
-					sessionsToPostToBoard.Add(session);
+					if (sessionsToPostToBoard.ContainsKey(session.SessionId)) { continue; }
+					sessionsToPostToBoard.Add(session.SessionId, session);
 				}
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);

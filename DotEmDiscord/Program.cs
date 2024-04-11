@@ -9,6 +9,7 @@ using DotemMatchmaker;
 using DotemDiscord.Context;
 using DotemMatchmaker.Context;
 using Microsoft.Extensions.Configuration;
+using DotemDiscord.Utils;
 
 namespace DotemDiscord
 {
@@ -77,7 +78,11 @@ namespace DotemDiscord
 				_serviceProvider.GetRequiredService<MatchListenHandler>().Initialize();
 				_serviceProvider.GetRequiredService<ButtonCleanser>().Initialize();
 				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync();
-                await _serviceProvider.GetRequiredService<MatchExpirer>().StartClearingExpiredJoins();
+
+                var expirer = _serviceProvider.GetRequiredService<MatchExpirer>();
+                expirer.ExceptionHandler = (e) => ExceptionHandling.ReportExceptionToFile(e);
+                await expirer.StartClearingExpiredJoins();
+
 				await _serviceProvider.GetRequiredService<SlashCommandHandler>().InstallSlashCommandsAsync();
                 await _serviceProvider.GetRequiredService<TextCommandHandler>().InstallTextCommandsAsync();
             };

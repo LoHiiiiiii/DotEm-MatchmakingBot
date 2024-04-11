@@ -280,7 +280,7 @@ namespace DotemExtensions {
 						userId = $userId;
 				";
 
-				return (await connection.QueryAsync<ulong>(sql, new { userId })).FirstOrDefault();
+				return (await connection.QueryAsync<ulong?>(sql, new { userId })).FirstOrDefault();
 			}
 		}
 
