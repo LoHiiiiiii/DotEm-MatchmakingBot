@@ -15,8 +15,6 @@ namespace DotemDiscord.Handlers {
 		private readonly Matchmaker _matchmaker;
 		private readonly ButtonMessageHandler _buttonMessageHandler;
 		private readonly MatchmakingContext _matchmakingContext;
-		private readonly DiscordContext _discordContext;
-		private readonly ExtensionContext _extensionContext;
 		private readonly DiscordSocketClient _client;
 
 		private HashSet<SessionDetails> sessionsToSuggest = new HashSet<SessionDetails>();
@@ -26,15 +24,11 @@ namespace DotemDiscord.Handlers {
 			Matchmaker matchmaker,
 			ButtonMessageHandler buttonMessageHandler,
 			MatchmakingContext matchmakingContext,
-			DiscordContext discordContext,
-			ExtensionContext extensionContext,
 			DiscordSocketClient client
 		) {
 			_matchmaker = matchmaker;
 			_buttonMessageHandler = buttonMessageHandler;
 			_matchmakingContext = matchmakingContext;
-			_discordContext = discordContext;
-			_extensionContext = extensionContext;
 			_client = client;
 		}
 
@@ -84,7 +78,6 @@ namespace DotemDiscord.Handlers {
 			_buttonMessageHandler.SearchMessageCreated += HandleNewSearchMessage;
 		}
 
-
 		private async void HandleSuggestion(SessionDetails session, string userString, IUserMessage replyMessage) {
 			if (!ulong.TryParse(userString, out var userId)) { return; }
 			var user = await _client.GetUserAsync(userId);
@@ -105,7 +98,7 @@ namespace DotemDiscord.Handlers {
 
 			if (result is SessionResult.Matched matched) {
 				var structure = MessageStructures.GetMatchedStructure(
-					matched.matchedSession.GameId,
+					matched.matchedSession.GameName,
 					matched.matchedSession.UserExpires.Keys,
 					matched.matchedSession.Description
 				);

@@ -169,6 +169,24 @@ namespace DotemDiscord.TextCommands {
 				} catch { }
 			}
 
+			if (result is SessionResult.FailedToSuggest) {
+				await Context.Message.ReplyAsync(
+					text: "Couldn't suggest. Suggestions from text commands require the bot to direct message you. " +
+						"To see the partial matches, check the server's matchmaking board or try to search with a slash command.",
+					allowedMentions: AllowedMentions.None
+				);
+
+				result = await _matchmaker.SearchSessionAsync(
+					serverId: Context.Guild.Id.ToString(),
+					userId: Context.User.Id.ToString(),
+					gameIds: gameIds,
+					joinDuration: duration,
+					maxPlayerCount: maxPlayerCount,
+					description: description,
+					allowSuggestions: false
+				);
+			}
+
 			if (result is SessionResult.Matched matched) {
 				structure = MessageStructures.GetMatchedStructure(
 					matched.matchedSession.GameId,
@@ -176,12 +194,6 @@ namespace DotemDiscord.TextCommands {
 					matched.matchedSession.Description);
 			}
 
-			if (result is SessionResult.FailedToSuggest) {
-				structure = (
-					content: "Couldn't suggest. Suggestions from text commands require the bot to direct message you.",
-					components: null
-				);
-			}
 
 			if (result is SessionResult.FailedToJoin) {
 				structure = MessageStructures.GetFailedJoinStructure();
