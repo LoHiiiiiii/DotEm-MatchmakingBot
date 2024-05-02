@@ -201,7 +201,7 @@ namespace DotemDiscord.SlashCommands {
 			var createNewMessage = false;
 			if (result is SessionResult.Matched matched) {
 				structure = MessageStructures.GetMatchedStructure(
-					matched.matchedSession.GameId,
+					matched.matchedSession.GameName,
 					matched.matchedSession.UserExpires.Keys,
 					matched.matchedSession.Description);
 
