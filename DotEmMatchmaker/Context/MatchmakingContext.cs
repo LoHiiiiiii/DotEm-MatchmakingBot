@@ -507,14 +507,16 @@ namespace DotemMatchmaker.Context {
 						gameId IN ({gameIdString})
 						AND serverId = $serverId;
 
-					UPDATE OR IGNORE listen
+					UPDATE OR IGNORE 
+						listen
 					SET 
 						gameId = $aliasGameId
 					WHERE
 						gameId IN ({gameIdString})
 						AND serverId = $serverId;
 
-					DELETE FROM listen
+					DELETE FROM 
+						listen
 					WHERE
 						gameId IN ({gameIdString})
 						AND serverId = $serverId;
@@ -560,6 +562,7 @@ namespace DotemMatchmaker.Context {
 
 				command.Parameters.AddRange(ids.Select((id, i) => new SqliteParameter("$s" + i, id)));
 				command.Parameters.AddWithValue("$serverId", serverId);
+				command.Parameters.AddWithValue("$aliasId", aliasGameId);
 
 				await command.ExecuteNonQueryAsync();
 
