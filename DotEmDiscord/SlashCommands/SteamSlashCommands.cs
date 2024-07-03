@@ -46,13 +46,16 @@ namespace DotemDiscord.SlashCommands {
 					});
 					return;
 				}
+
+				var prefix = result.GameName != null ? $"{result.GameName} - " : "";
+
 				if (result.LobbyLink == null) {
 					await ModifyOriginalResponseAsync(x => {
-						x.Content = "No lobby found.";
+						x.Content = $"{prefix}No lobby found.";
 					});
 					return;
 				}
-				var prefix = result.GameName != null ? $"{result.GameName} - " : "";
+
 				await ModifyOriginalResponseAsync(x => {
 					x.Content = $"{prefix}{result.LobbyLink}";
 				});

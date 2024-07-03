@@ -81,7 +81,7 @@ namespace DotemMatchmaker {
 
 									(var updated, var stopped) = await _context.LeaveAllSessionsAsync(joined.UserExpires.Keys.ToArray());
 									if (updated.Any()) updatedSessions.AddRange(updated);
-									if (stopped.Any()) stoppedSessions.AddRange(stopped.Select(id => 
+									if (stopped.Any()) stoppedSessions.AddRange(stopped.Select(id =>
 										(id, joined.SessionId == id ? SessionStopReason.Joined : SessionStopReason.JoinedOther))
 									);
 
@@ -102,10 +102,10 @@ namespace DotemMatchmaker {
 							var hasSuggestable = false;
 
 							// Do not suggest if matching games have no descriptions and search has a description
-							foreach(var search in uniqueSearches) {
-								 hasSuggestable = matchingGames
-									.Any(sd => sd.GameId == search.gameId
-										&& (search.description == null || sd.Description != null));
+							foreach (var search in uniqueSearches) {
+								hasSuggestable = matchingGames
+								   .Any(sd => sd.GameId == search.gameId
+									   && (search.description == null || sd.Description != null));
 
 								if (hasSuggestable) { break; }
 							}
@@ -382,8 +382,8 @@ namespace DotemMatchmaker {
 
 			var searchParams = gameIds
 				.Select(id => (
-					id, 
-					maxPlayerCount ?? (gameDefaults.ContainsKey(id) ? (gameDefaults[id].maxPlayerCount ?? DefaultMaxPlayerCount) : DefaultMaxPlayerCount), 
+					id,
+					maxPlayerCount ?? (gameDefaults.ContainsKey(id) ? (gameDefaults[id].maxPlayerCount ?? DefaultMaxPlayerCount) : DefaultMaxPlayerCount),
 					description ?? (gameDefaults.ContainsKey(id) ? gameDefaults[id].description : null)
 				))
 				.ToArray();
@@ -399,6 +399,15 @@ namespace DotemMatchmaker {
 
 		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, int? joinDuration = null)
 			=> await TryJoinSessionAsync(userId, sessionId, DateTimeOffset.Now.AddMinutes(joinDuration ?? DefaultJoinDurationMinutes));
+
+
+		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, DateTimeOffset? expireTime) { 
+			if (expireTime == null) {
+				return await TryJoinSessionAsync(userId, sessionId);
+			}
+
+			return await TryJoinSessionAsync(userId, sessionId, expireTime.Value);
+		}
 		#endregion
 	}
 }

@@ -22,6 +22,7 @@ namespace DotemDiscord.ButtonMessages {
 
 		private SemaphoreSlim messageSemaphore = new SemaphoreSlim(1, 1);
 		private bool released;
+		private bool deleted;
 
 		public SearchMessage(
 			DiscordSocketClient client, 
@@ -79,7 +80,8 @@ namespace DotemDiscord.ButtonMessages {
 						return;
 					}
 
-					var result = await _matchmaker.TryJoinSessionAsync(stringId, search.SessionId);
+					var expireTime = MessageStructures.GetDisplayedUserExpire(Searches.Values, CreatorId);
+					var result = await _matchmaker.TryJoinSessionAsync(stringId, search.SessionId, expireTime);
 
 					var (structure, ephemeral) = (MessageStructures.GetFailedJoinStructure(), true);
 
@@ -128,6 +130,7 @@ namespace DotemDiscord.ButtonMessages {
 
 		// Remember to await semaphore before calling!
 		private async Task UpdateMessageAsync(SessionStopReason? stopReason = null) {
+			if (deleted) { return; }
 			var stillSearching = Searches.Any();
 
 			if (!stillSearching && DeleteOnStop) {
@@ -162,6 +165,7 @@ namespace DotemDiscord.ButtonMessages {
 
 			await messageSemaphore.WaitAsync();
 			try {
+				deleted = true;
 				await ReleaseAsync();
 			} finally { messageSemaphore.Release(); }
 		}

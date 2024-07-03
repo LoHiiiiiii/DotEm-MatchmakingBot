@@ -12,25 +12,34 @@ namespace DotemDiscord.Utils {
 		public static (string? content, MessageComponent? components) GetWaitingStructure(IEnumerable<SessionDetails> waits, ulong? userId) {
 			if (!waits.Any()) { return ("No sessions! Shouldn't happen!", null); }
 
-			IEnumerable<DateTimeOffset> expireTimes;
+			var expireTime = GetDisplayedUserExpire(waits, userId);
 
+			if (expireTime == null) { return ("No users waiting! Shouldn't happen!", null); }
+
+			return (
+				content: $"Search expiration <t:{expireTime.Value.ToUnixTimeSeconds()}:R>.",
+				components: GetJoinButtons(waits).Build()
+			);
+		}
+
+		public static DateTimeOffset? GetDisplayedUserExpire(IEnumerable<SessionDetails> waits, ulong? userId) {
 			var stringId = userId?.ToString();
 
-			var userExpires = stringId == null ? Enumerable.Empty<DateTimeOffset>()
+			var userExpires = stringId == null 
+				? Enumerable.Empty<DateTimeOffset>()
 				: waits
 					.Where(w => w.UserExpires.ContainsKey(stringId))
 					.Select(w => w.UserExpires[stringId]);
-			
-			expireTimes = userExpires.Any()
+
+			var expireTimes = userExpires.Any()
 				? userExpires
 				: waits.SelectMany(w => w.UserExpires.Values);
 
-			if (!expireTimes.Any()) { return ("No users waiting! Shouldn't happen!", null); }
+			if (!expireTimes.Any()) {
+				return null;
+			}
 
-			return (
-				content: $"Search expiration <t:{expireTimes.Min().ToUnixTimeSeconds()}:R>.",
-				components: GetJoinButtons(waits).Build()
-			);
+			return expireTimes.Min();
 		}
 
 		public static (string? content, MessageComponent? components) GetSuggestionStructure(IEnumerable<SessionDetails> joinables, ulong userId, Guid? searchId, bool allowCancel) {
