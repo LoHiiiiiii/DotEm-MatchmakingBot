@@ -261,7 +261,7 @@ namespace DotemDiscord.TextCommands {
 
 					var gameNames = userSessions
 						.Where(s => leftIds.Contains(s.SessionId))
-						.Select(s => s.GameName)
+						.Select(s => s.Description == null ? s.GameName : $"{s.GameName} ({s.Description})")
 						.ToArray();
 
 					structure = MessageStructures.GetStoppedStructure(gameNames);
