@@ -106,7 +106,7 @@ namespace DotemDiscord.SlashCommands {
 
 		[EnabledInDm(false)]
 		[SlashCommand("rematch", "Uses your previous search in this server again.")]
-		public async Task RematchSlashCommandAsync() {
+		public async Task RematchSlashCommandAsync(int? time = null) {
 			try {
 				await DeferAsync();
 
@@ -127,7 +127,7 @@ namespace DotemDiscord.SlashCommands {
 				(var createNewMessage, var content, var components) = await HandleSearchAsync(
 					message: message,
 					gameIds: result.Value.gameIds,
-					duration: result.Value.duration,
+					duration: time ?? result.Value.duration,
 					maxPlayerCount: result.Value.maxPlayerCount,
 					description: result.Value.description
 				);

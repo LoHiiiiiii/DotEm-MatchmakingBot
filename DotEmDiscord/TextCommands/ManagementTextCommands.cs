@@ -15,8 +15,8 @@ namespace DotemDiscord.TextCommands {
 		}
 
 		[Discord.Commands.RequireOwner]
-		[Command("install-slash", RunMode = Discord.Commands.RunMode.Async)]
-		public async Task GetSteamLobbyTextCommandAsync() {
+		[Command("install-global", RunMode = Discord.Commands.RunMode.Async)]
+		public async Task InstallGlobalSlashCommands() {
 			try {
 				await _interactionService.RegisterCommandsGloballyAsync(true);
 				try {
