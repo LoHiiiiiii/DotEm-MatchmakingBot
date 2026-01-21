@@ -59,7 +59,7 @@ namespace DotemDiscord
                 .AddSingleton<InteractionService>()
 				.AddSingleton<ButtonMessageHandler>()
 				.AddSingleton<ButtonCleanser>()
-				.AddSingleton<MatchmakingBoardHandler>()
+				.AddSingleton<SearchPropagationHandler>()
 				.AddSingleton<MatchListenHandler>()
 				.AddSingleton<TextCommandHandler>()
                 .AddSingleton<SlashCommandHandler>()

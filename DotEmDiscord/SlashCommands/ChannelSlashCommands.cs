@@ -10,11 +10,11 @@ namespace DotemDiscord.SlashCommands {
 	public class ChannelSlashCommands : InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>> {
 
 		private readonly ExtensionContext _extensionContext;
-		private readonly MatchmakingBoardHandler _matchmakingBoardHandler;
+		private readonly SearchPropagationHandler _searchPropagationHandler;
 
-		public ChannelSlashCommands(ExtensionContext extensionContext, MatchmakingBoardHandler matchmakingBoardHandler) {
+		public ChannelSlashCommands(ExtensionContext extensionContext, SearchPropagationHandler searchPropagationHandler) {
 			_extensionContext = extensionContext;
-			_matchmakingBoardHandler = matchmakingBoardHandler;
+			_searchPropagationHandler = searchPropagationHandler;
 		}
 
 		[EnabledInDm(false)]
@@ -123,7 +123,7 @@ namespace DotemDiscord.SlashCommands {
 			try {
 				await DeferAsync(true);
 				await _extensionContext.AddMatchmakingBoardAsync(Context.Guild.Id.ToString(), Context.Channel.Id.ToString());
-				await _matchmakingBoardHandler.PostActiveMatchesAsync(Context.Guild.Id, Context.Channel.Id);
+				await _searchPropagationHandler.PostActiveMatchesAsync(Context.Guild.Id, Context.Channel.Id);
 				await ModifyOriginalResponseAsync(x => {
 					x.Content = "Set the channel as a matchmaking board.";
 				});

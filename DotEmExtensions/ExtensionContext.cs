@@ -82,6 +82,31 @@ namespace DotemExtensions {
 			}
 		}
 
+		public async Task<string[]> GetGameDefaultChannelsAsync(string gameId) {
+			using (var connection = GetOpenConnection()) {
+
+				var sql = @"
+					SELECT
+						channelId
+					FROM
+						channelDefault
+					WHERE
+						gameIds = $gameId
+						OR gameIds LIKE '$gameId %'
+						OR gameIds LIKE '% $gameId'
+						OR gameIds LIKE '% $gameId %'
+				";
+
+				var result = await connection.QueryAsync(sql, new { gameId });
+
+				if (!result.Any()) {
+					return [];
+				}
+
+				return result.Select(row => (string)row.channelId).ToArray();
+			}
+		}
+
 		public async Task SetChannelDefaultParametersAsync(string channelId, string gameIds, int? maxPlayerCount, int? duration, string? description) {
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();

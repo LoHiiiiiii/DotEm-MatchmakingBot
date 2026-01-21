@@ -18,7 +18,6 @@ namespace DotemDiscord.Handlers {
 		public readonly Matchmaker _matchmaker;
 		public readonly DiscordSocketClient _client;
 
-
 		public delegate void SearchMessageEvent(SearchMessage searchMessage);
 		public event SearchMessageEvent? SearchMessageCreated;
 
@@ -146,19 +145,29 @@ namespace DotemDiscord.Handlers {
 			IUserMessage? replyMessage = null
 		) {
 			var channel = await _client.GetChannelAsync(channelId);
-			if (channel is not IMessageChannel) { return null; }
+			if (channel is not IMessageChannel messageChannel) { return null; }
 
+			return await CreateSearchMessageAsync(messageChannel, searches, creatorId, replyMessage);
+		}
+
+		public async Task<SearchMessage?> CreateSearchMessageAsync(
+			IMessageChannel messageChannel,
+			IEnumerable<SessionDetails> searches,
+			ulong? creatorId = null,
+			IUserMessage? replyMessage = null
+		) {
 			var structure = MessageStructures.GetWaitingStructure(searches, null);
 			IUserMessage? message = null;
 			try {
-				message = await ((IMessageChannel)channel).SendMessageAsync(structure.content, components: structure.components);
+				message = await messageChannel.SendMessageAsync(structure.content, components: structure.components);
 			} catch { }
 			if (message == null) { return null; }
-			
+
 			var searchMessage = await CreateSearchMessageAsync(message, searches, creatorId);
 			if (replyMessage != null) { searchMessage.ReplyMessage = replyMessage; }
 			return searchMessage;
 		}
+
 		public async Task<SearchMessage?> CreateSearchMessageAsync(
 			ulong channelId,
 			IEnumerable<SessionDetails> searches,
@@ -174,7 +183,6 @@ namespace DotemDiscord.Handlers {
 
 			return await CreateSearchMessageAsync(channelId, searches, creatorId, replyMessage: userMessage);
 		}
-
 
 		public async Task<SearchMessage> CreateSearchMessageAsync(
 			IUserMessage message,
