@@ -79,32 +79,48 @@ namespace DotemDiscord.Handlers {
 		}
 
 		private async void HandleSuggestion(SessionDetails session, string userString, IUserMessage replyMessage) {
-			if (!ulong.TryParse(userString, out var userId)) { return; }
-			var user = await _client.GetUserAsync(userId);
-			if (user == null) { return; }
+			try {
+				if (!ulong.TryParse(userString, out var userId)) { return; }
+				var user = await _client.GetUserAsync(userId);
+				if (user == null) { return; }
 
-			var result = await _buttonMessageHandler.GetSuggestionResultAsync(userId, [session], durationMinutes: null, allowCancel: true, searchParams: null);
-			if (result == null) { return; }
-			if (result is SessionResult.FailedToJoin) {
-				var structure = MessageStructures.GetFailedJoinStructure();
-				try {
-					await user.SendMessageAsync(text: structure.content, components: structure.components);
-				} catch (HttpException e) {
-					if (e.DiscordCode == DiscordErrorCode.CannotSendMessageToUser) { return; }
-					throw;
+				SessionResult? result = null;
+				var attempts = 0;
+				var maxAttempts = 5;
+
+				while(attempts < maxAttempts) {
+					attempts++;
+
+					result = await _buttonMessageHandler.GetSuggestionResultAsync(user, [session], durationMinutes: null, allowCancel: true, searchParams: null);
+					if (result == null) { return; }
+					if (result is SessionResult.FailedToJoin) {
+						var structure = MessageStructures.GetFailedJoinStructure();
+						try {
+							await user.SendMessageAsync(text: structure.content, components: structure.components);
+						} catch (HttpException e) {
+							if (e.DiscordCode == DiscordErrorCode.CannotSendMessageToUser) { return; }
+							throw;
+						}
+						return;
+					}
+					if (result is SessionResult.Exception ex && ex.reason == ExceptionReason.TooManyDMs) {
+						await Task.Delay(1000 * 60);
+						continue;
+					}
+					break;
 				}
-				return;
-			}
 
-			if (result is SessionResult.Matched matched) {
-				var structure = MessageStructures.GetMatchedStructure(
-					matched.matchedSession.GameName,
-					matched.matchedSession.UserExpires.Keys,
-					matched.matchedSession.Description
-				);
+				if (result is SessionResult.Matched matched) {
+					var structure = MessageStructures.GetMatchedStructure(
+						matched.matchedSession.GameName,
+						matched.matchedSession.UserExpires.Keys,
+						matched.matchedSession.Description
+					);
 
-				await replyMessage.ReplyAsync(text: structure.content, components: structure.components);
-				return;
+					await replyMessage.ReplyAsync(text: structure.content, components: structure.components);
+				}
+			} catch (Exception e) {
+				ExceptionHandling.ReportExceptionToFile(e);
 			}
 		}
 	}

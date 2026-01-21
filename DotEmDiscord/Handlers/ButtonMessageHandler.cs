@@ -110,12 +110,16 @@ namespace DotemDiscord.Handlers {
 				);
 			} catch (HttpException e) {
 				if (e.DiscordCode == DiscordErrorCode.CannotSendMessageToUser) {
-					return new SessionResult.FailedToSuggest();
+					return new SessionResult.Exception();
 				}
-				throw;
+				if (e.DiscordCode == DiscordErrorCode.OpeningDMTooFast) {
+					return new SessionResult.Exception(ExceptionReason.TooManyDMs);
+				}
+				ExceptionHandling.ReportExceptionToFile(e);
+				return new SessionResult.Exception();
 			}
 			if (message == null) {
-				return new SessionResult.FailedToSuggest();
+				return new SessionResult.Exception();
 			}
 
 			var suggestion = new SuggestionMessage(

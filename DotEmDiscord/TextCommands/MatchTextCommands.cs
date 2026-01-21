@@ -169,10 +169,14 @@ namespace DotemDiscord.TextCommands {
 				} catch { }
 			}
 
-			if (result is SessionResult.FailedToSuggest) {
+			if (result is SessionResult.Exception ex) {
+				var reason = (ex.reason == ExceptionReason.TooManyDMs)
+					? "Discord is currently limiting the bot's ability to send direct messages."
+					: "Suggestions from text commands require the bot to direct message you.";
+
 				await Context.Message.ReplyAsync(
-					text: "Couldn't suggest. Suggestions from text commands require the bot to direct message you. " +
-						"To see the partial matches, check the server's matchmaking board or try to search with a slash command.",
+					text: $"Couldn't suggest. {reason} " +
+						"To see the partial matches check the server's matchmaking board or try to search with a slash command.",
 					allowedMentions: AllowedMentions.None
 				);
 
