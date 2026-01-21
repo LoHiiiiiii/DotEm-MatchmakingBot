@@ -51,12 +51,18 @@ namespace DotemDiscord.Handlers {
 				components: structure.components,
 				ephemeral: true
 			);
+
+			if (interaction.GuildId == null) {
+				throw new ArgumentNullException("Can't suggest without a server");
+			}
+
 			var suggestion = new SuggestionMessage(
 				client: _client,
 				matchmaker: _matchmaker,
 				message: followup,
 				joinableSessions: joinableSessions,
 				creatorId: interaction.User.Id,
+				serverId: interaction.GuildId.Value,
 				durationMinutes: durationMinutes,
 				searchParams: searchParams,
 				id: guid,
@@ -75,24 +81,17 @@ namespace DotemDiscord.Handlers {
 		}
 
 		public async Task<SessionResult> GetSuggestionResultAsync(
-			ulong userId,
-			IEnumerable<SessionDetails> joinableSessions,
-			int? durationMinutes,
-			(string[]? gameIds, string? description, int? playerCount)? searchParams,
-			bool allowCancel = false
-		) {
-			var user = await _client.GetUserAsync(userId);
-			if (user == null) return new SessionResult.NoAction();
-			return await GetSuggestionResultAsync(user, joinableSessions, durationMinutes, searchParams, allowCancel);
-		}
-
-		public async Task<SessionResult> GetSuggestionResultAsync(
 			IUser user,
 			IEnumerable<SessionDetails> joinableSessions,
 			int? durationMinutes,
 			(string[]? gameIds, string? description, int? playerCount)? searchParams,
-			bool allowCancel = false
+			bool allowCancel = false,
+			ulong? serverId = null
 		) {
+			if (searchParams != null && serverId == null) {
+				throw new ArgumentNullException("ServerId cannot be null for search with searchParams!");
+			}
+
 			var guid = Guid.NewGuid();
 			var structure = MessageStructures.GetSuggestionStructure(
 				joinables: joinableSessions,
@@ -128,6 +127,7 @@ namespace DotemDiscord.Handlers {
 				message: message,
 				joinableSessions: joinableSessions,
 				creatorId: user.Id,
+				serverId: serverId ?? 0,
 				durationMinutes: durationMinutes,
 				searchParams: searchParams,
 				id: guid,

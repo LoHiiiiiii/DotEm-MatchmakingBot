@@ -155,6 +155,7 @@ namespace DotemDiscord.TextCommands {
 					user: Context.User,
 					joinableSessions: suggestions.suggestedSessions,
 					durationMinutes: duration ?? _matchmaker.DefaultJoinDurationMinutes,
+					serverId: Context.Guild.Id,
 					searchParams: suggestions.allowWait
 						? (gameIds: gameIds,
 							description,

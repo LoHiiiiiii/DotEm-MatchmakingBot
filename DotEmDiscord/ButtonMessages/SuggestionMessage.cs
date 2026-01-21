@@ -33,6 +33,7 @@ namespace DotemDiscord.ButtonMessages {
 			IUserMessage message,
 			IEnumerable<SessionDetails> joinableSessions,
 			ulong creatorId,
+			ulong serverId,
 			int? durationMinutes,
 			(string[]? gameIds, string? description, int? playerCount)? searchParams,
 			Guid id,
@@ -46,6 +47,7 @@ namespace DotemDiscord.ButtonMessages {
 			Message = message;
 			JoinableSessions = joinableSessions.ToDictionary(s => s.SessionId, s => s);
 			CreatorId = creatorId;
+			ServerId = serverId;
 			DurationMinutes = durationMinutes;
 			SearchParams = searchParams;
 			SuggestionId = id;
