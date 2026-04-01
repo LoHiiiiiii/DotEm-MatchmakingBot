@@ -1,1 +1,8 @@
-A simple matchmaking bot for discord. The basic gist is allowing searching arbitary id's and the bot pings everyone searching for the same id when enough players are searching. The bells and whistles include features like adding complete names and aliases for ids, making the bot DM you when a specific id is listened on a specific server, and adding the ability to join other people's searches by simple pressing a button that appears when someone does search for the id with a command.
+A Discord matchmaking bot for finding players. Search for arbitrary game IDs and the bot notifies everyone searching for the same ID once enough players are queued.
+
+**Features:**
+- Display names and aliases for game IDs
+- Join others' active searches via a button on their search message
+- DM notifications when a listened-for ID is searched on a server
+- Matchmaking board channels that aggregate active searches
+- Set defaults games for channels and default player counts for games
