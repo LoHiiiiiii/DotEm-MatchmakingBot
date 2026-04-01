@@ -138,12 +138,13 @@ namespace DotemDiscord.ButtonMessages {
 				.ToHashSet();
 
 			var missing = Searches.Keys.Where(id => !existing.Contains(id)).ToArray();
-			if (missing.Length == 0) return;
+			if (missing.Length == 0) { return; }
 
 			await messageSemaphore.WaitAsync();
 			try {
 				foreach (var id in missing) Searches.Remove(id);
 				await UpdateMessageAsync();
+				if (!Searches.Any()) { await ReleaseAsync(); }
 			} finally { messageSemaphore.Release(); }
 		}
 
