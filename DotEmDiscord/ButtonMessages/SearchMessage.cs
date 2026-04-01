@@ -1,4 +1,4 @@
-﻿using Discord;
+using Discord;
 using Discord.Net;
 using Discord.WebSocket;
 using DotemDiscord.Context;
@@ -128,15 +128,44 @@ namespace DotemDiscord.ButtonMessages {
 			} finally { messageSemaphore.Release(); }
 		}
 
+		public async Task VerifySearchesAsync() {
+			var existing = (await _matchmaker.GetSessionsAsync(Searches.Keys.ToArray()))
+				.Select(s => s.SessionId)
+				.ToHashSet();
+
+			var missing = Searches.Keys.Where(id => !existing.Contains(id)).ToArray();
+			if (missing.Length == 0) return;
+
+			await messageSemaphore.WaitAsync();
+			try {
+				foreach (var id in missing) Searches.Remove(id);
+				await UpdateMessageAsync();
+			} finally { messageSemaphore.Release(); }
+		}
+
 		// Remember to await semaphore before calling!
 		private async Task UpdateMessageAsync(SessionStopReason? stopReason = null) {
 			if (deleted) { return; }
 			var stillSearching = Searches.Any();
 
 			if (!stillSearching && DeleteOnStop) {
-				await Message.DeleteAsync();
+				for (int i = 0; i < 3; i++) {
+					try { 
+						await Message.DeleteAsync();
+						deleted = true;
+						break; 
+					}
+					catch (HttpException e) when (
+						e.DiscordCode == DiscordErrorCode.UnknownMessage ||
+						e.DiscordCode == DiscordErrorCode.MissingPermissions)
+					{ break; }
+					catch { await Task.Delay(1000); }
+				}
+				if (!deleted) { return; }
+				if (!released) { await ReleaseAsync(); }
 				return;
 			}
+			
 			var structure = stillSearching
 				? MessageStructures.GetWaitingStructure(Searches.Values, CreatorId)
 				: MessageStructures.GetSessionStoppedStructure(stopReason);
@@ -179,7 +208,7 @@ namespace DotemDiscord.ButtonMessages {
 					SessionStopReason? stopReason = null;
 					var modified = false;
 					foreach (var id in stopped.Keys) {
-						if (!Searches.ContainsKey(id)) continue;
+						if (!Searches.ContainsKey(id)) { continue; }
 						modified = true;
 						Searches.Remove(id);
 						stopReason = stopReason.GetHigherPriorityReason(stopped[id]);

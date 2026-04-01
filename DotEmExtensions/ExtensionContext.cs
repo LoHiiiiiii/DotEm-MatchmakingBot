@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.Data.Sqlite;
 
 namespace DotemExtensions {
@@ -39,7 +39,7 @@ namespace DotemExtensions {
 
 					CREATE TABLE IF NOT EXISTS matchmakingBoard (
 						channelId TEXT PRIMARY KEY NOT NULL,
-						serverId TEXY NOT NULL
+						serverId TEXT NOT NULL
 					);
 
 					CREATE TABLE IF NOT EXISTS steamUser (
@@ -115,7 +115,7 @@ namespace DotemExtensions {
 						channelDefault
 					VALUES ($channelId, $gameIds, $maxPlayerCount, $duration, $description)
 					ON CONFLICT (channelId)
-					DO UPDATE SET 
+					DO UPDATE SET
 						gameIds = excluded.gameIds,
 						maxPlayerCount = excluded.maxPlayerCount,
 						duration = excluded.duration,
@@ -139,7 +139,7 @@ namespace DotemExtensions {
 					DELETE FROM
 						channelDefault
 					WHERE
-						channelID = $channelId;
+						channelId = $channelId;
 				";
 
 				command.Parameters.AddWithValue("$channelId", channelId);
@@ -188,7 +188,7 @@ namespace DotemExtensions {
 						userRematch
 					VALUES ($serverId, $userId, $gameIds, $maxPlayerCount, $duration, $description)
 					ON CONFLICT (serverId, userId)
-					DO UPDATE SET 
+					DO UPDATE SET
 						gameIds = excluded.gameIds,
 						maxPlayerCount = excluded.maxPlayerCount,
 						duration = excluded.duration,
@@ -213,9 +213,9 @@ namespace DotemExtensions {
 
 				var command = connection.CreateCommand();
 				command.CommandText = @$"
-					INSERT OR IGNORE INTO 
+					INSERT OR IGNORE INTO
 						matchmakingBoard
-					VALUES 
+					VALUES
 						($channelId, $serverId);
 				";
 
@@ -232,7 +232,7 @@ namespace DotemExtensions {
 					SELECT
 						serverId,
 						channelId
-					FROM 
+					FROM
 						matchmakingBoard;
 				";
 
@@ -245,7 +245,7 @@ namespace DotemExtensions {
 				var sql = @$"
 					SELECT
 						channelId
-					FROM 
+					FROM
 						matchmakingBoard
 					WHERE
 						serverId IN $serverIds;
@@ -260,7 +260,7 @@ namespace DotemExtensions {
 
 				var command = connection.CreateCommand();
 				command.CommandText = @$"
-					DELETE FROM 
+					DELETE FROM
 						matchmakingBoard
 					WHERE
 						channelId = $channelId
@@ -280,7 +280,7 @@ namespace DotemExtensions {
 				command.CommandText = @$"
 					INSERT INTO
 						steamUser
-					VALUES 
+					VALUES
 						($userId, $steamId)
 					ON CONFLICT (userId)
 					DO UPDATE SET
@@ -299,7 +299,7 @@ namespace DotemExtensions {
 				var sql = @$"
 					SELECT
 						steamId
-					FROM 
+					FROM
 						steamUser
 					WHERE
 						userId = $userId;
@@ -314,8 +314,8 @@ namespace DotemExtensions {
 
 				var command = connection.CreateCommand();
 				command.CommandText = @$"
-					DELETE FROM 
-						matchmakingBoard
+					DELETE FROM
+						steamUser
 					WHERE
 						userId = $userId;
 				";

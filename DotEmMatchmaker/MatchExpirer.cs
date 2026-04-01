@@ -1,4 +1,4 @@
-﻿using DotemModel;
+using DotemModel;
 
 namespace DotemMatchmaker {
 	public class MatchExpirer {
@@ -104,12 +104,18 @@ namespace DotemMatchmaker {
 				}
 			} catch (OperationCanceledException) { return; }
 
-			if (token.IsCancellationRequested) {
-				return;
+			await expirationSemaphore.WaitAsync();
+			try {
+				if (!token.IsCancellationRequested) {
+					ExpirationSource = null;
+					FirstExpiration = null;
+				} else {
+					return;
+				}
+			} finally {
+				expirationSemaphore.Release();
 			}
 
-			ExpirationSource = null;
-			FirstExpiration = null;
 			_ = TryClearExpiredsAsync();
 		}
 

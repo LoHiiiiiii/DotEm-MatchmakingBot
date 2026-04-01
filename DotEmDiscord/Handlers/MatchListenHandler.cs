@@ -1,12 +1,10 @@
-﻿using DotemMatchmaker;
+using DotemMatchmaker;
 using DotemModel;
-using DotemDiscord.Context;
 using DotemMatchmaker.Context;
 using Discord.WebSocket;
 using Discord;
 using DotemDiscord.Utils;
 using Discord.Net;
-using DotemExtensions;
 using DotemDiscord.ButtonMessages;
 
 namespace DotemDiscord.Handlers {

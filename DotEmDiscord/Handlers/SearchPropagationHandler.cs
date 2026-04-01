@@ -1,11 +1,10 @@
-﻿using DotemMatchmaker;
+using DotemMatchmaker;
 using DotemModel;
 using DotemExtensions;
 using DotemDiscord.ButtonMessages;
 using DotemDiscord.Context;
 using DotemDiscord.Utils;
 using Discord.WebSocket;
-using Discord.Commands;
 using Discord;
 
 namespace DotemDiscord.Handlers {
@@ -41,8 +40,7 @@ namespace DotemDiscord.Handlers {
 			foreach (var session in activeSearches) {
 				if (session.ServerId != stringServerId) { continue; }
 				var serverMessage = serverMessages
-					.Where(sm => sm.SessionIds.ToHashSet().Contains(session.SessionId))
-					.FirstOrDefault();
+					.FirstOrDefault(sm => sm.SessionIds.ToHashSet().Contains(session.SessionId));
 				await _buttonMessageHandler.CreateSearchMessageAsync(channelId, [session], messageId: serverMessage?.MessageId, serverMessage?.ChannelId);
 			}
 		}
@@ -90,12 +88,13 @@ namespace DotemDiscord.Handlers {
 			foreach (var session in postables) {
 				if (!boards.ContainsKey(session.ServerId)) { continue; }
 				foreach (var channel in boards[session.ServerId]) {
-					await _buttonMessageHandler.CreateSearchMessageAsync(channel, [session], replyMessage: message);
+					var boardMessage = await _buttonMessageHandler.CreateSearchMessageAsync(channel, [session], replyMessage: message);
+					if (boardMessage != null) { await boardMessage.VerifySearchesAsync(); }
 				}
 			}
 		}
 		private async Task PostToDefaultChannelsAsync(IUserMessage message, IEnumerable<SessionDetails> postables, ulong? creatorId) {
-			if (creatorId == null) { return;  }
+			if (creatorId == null) { return; }
 			if (message.Channel is not IGuildChannel searchChannel) { return; }
 			foreach (var session in postables) {
 				var channelIds = await _extensionContext.GetGameDefaultChannelsAsync(session.GameId);
@@ -108,7 +107,8 @@ namespace DotemDiscord.Handlers {
 					if (channel is not IGuildChannel guildChannel) { continue; }
 					if (guildChannel.GuildId != searchChannel.GuildId) { continue; }
 					if (guildChannel is not IMessageChannel messageChannel) { continue; }
-					await _buttonMessageHandler.CreateSearchMessageAsync(messageChannel, [session], creatorId: creatorId);
+					var defaultMessage = await _buttonMessageHandler.CreateSearchMessageAsync(messageChannel, [session], creatorId: creatorId);
+					if (defaultMessage != null) { await defaultMessage.VerifySearchesAsync(); }
 				}
 			}
 		}

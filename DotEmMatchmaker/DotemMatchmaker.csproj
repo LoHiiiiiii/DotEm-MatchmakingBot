@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DotemModel\DotemModel.csproj" />
+    <ProjectReference Include="..\DotEmModel\DotemModel.csproj" />
   </ItemGroup>
 
 </Project>
