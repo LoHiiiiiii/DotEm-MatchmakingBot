@@ -25,12 +25,12 @@ namespace DotemDiscord.ButtonMessages {
 		private bool deleted;
 
 		public SearchMessage(
-			DiscordSocketClient client, 
-			Matchmaker matchmaker, 
-			DiscordContext context, 
-			IUserMessage message, 
-			IEnumerable<SessionDetails> searches, 
-			ulong? creatorId, 
+			DiscordSocketClient client,
+			Matchmaker matchmaker,
+			DiscordContext context,
+			IUserMessage message,
+			IEnumerable<SessionDetails> searches,
+			ulong? creatorId,
 			bool deleteOnStop = false
 		) {
 			_client = client;
@@ -150,22 +150,19 @@ namespace DotemDiscord.ButtonMessages {
 
 			if (!stillSearching && DeleteOnStop) {
 				for (int i = 0; i < 3; i++) {
-					try { 
+					try {
 						await Message.DeleteAsync();
 						deleted = true;
-						break; 
-					}
-					catch (HttpException e) when (
-						e.DiscordCode == DiscordErrorCode.UnknownMessage ||
-						e.DiscordCode == DiscordErrorCode.MissingPermissions)
-					{ break; }
-					catch { await Task.Delay(1000); }
+						break;
+					} catch (HttpException e) when (
+						  e.DiscordCode == DiscordErrorCode.UnknownMessage ||
+						  e.DiscordCode == DiscordErrorCode.MissingPermissions) { break; } catch { await Task.Delay(1000); }
 				}
 				if (!deleted) { return; }
 				if (!released) { await ReleaseAsync(); }
 				return;
 			}
-			
+
 			var structure = stillSearching
 				? MessageStructures.GetWaitingStructure(Searches.Values, CreatorId)
 				: MessageStructures.GetSessionStoppedStructure(stopReason);

@@ -11,64 +11,63 @@ using DotemMatchmaker.Context;
 using Microsoft.Extensions.Configuration;
 using DotemDiscord.Utils;
 
-namespace DotemDiscord
-{
-    public class Program {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly IConfiguration _config;
+namespace DotemDiscord {
+	public class Program {
+		private readonly IServiceProvider _serviceProvider;
+		private readonly IConfiguration _config;
 
 		public Program() {
 			var builder = new ConfigurationBuilder();
-           _config = builder.SetBasePath(Directory.GetCurrentDirectory())
-                   .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                   .AddEnvironmentVariables()
-                   .Build();
+			_config = builder.SetBasePath(Directory.GetCurrentDirectory())
+					.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+					.AddEnvironmentVariables()
+					.Build();
 
 			_serviceProvider = CreateProvider();
-        }
+		}
 
-        private static void Main(string[] args)
-            => new Program().RunAsync(args).GetAwaiter().GetResult();
+		private static void Main(string[] args)
+			=> new Program().RunAsync(args).GetAwaiter().GetResult();
 
-        private IServiceProvider CreateProvider() {
-            var clientConfig = new DiscordSocketConfig { 
-                GatewayIntents = GatewayIntents.MessageContent | GatewayIntents.AllUnprivileged & ~GatewayIntents.GuildScheduledEvents & ~GatewayIntents.GuildInvites,
-                UseInteractionSnowflakeDate = false,
+		private IServiceProvider CreateProvider() {
+			var clientConfig = new DiscordSocketConfig {
+				GatewayIntents = GatewayIntents.MessageContent | GatewayIntents.AllUnprivileged & ~GatewayIntents.GuildScheduledEvents & ~GatewayIntents.GuildInvites,
+				UseInteractionSnowflakeDate = false,
 			};
 
-            var interactionConfig = new InteractionServiceConfig() {
-                AutoServiceScopes = true,
-                ThrowOnError = true,
-            };
+			var interactionConfig = new InteractionServiceConfig() {
+				AutoServiceScopes = true,
+				ThrowOnError = true,
+			};
 
 			var steamApiKey = _config["STEAM_APIKEY"] ?? "";
 			var lobbyPrefix = _config["LOBBY_PREFIX"] ?? "";
 
 			var collection = new ServiceCollection()
-                .AddSingleton<MatchmakingContext>()
-                .AddSingleton<ExtensionContext>()
-                .AddSingleton<DiscordContext>()
-                .AddSingleton<Matchmaker>()
-                .AddSingleton<MatchExpirer>()
-                .AddSingleton(new SteamHandler(steamApiKey, lobbyPrefix))
-                .AddSingleton(clientConfig)
-                .AddSingleton<DiscordSocketClient>()
-                .AddSingleton<CommandServiceConfig>()
-                .AddSingleton<CommandService>()
+				.AddSingleton<MatchmakingContext>()
+				.AddSingleton<ExtensionContext>()
+				.AddSingleton<DiscordContext>()
+				.AddSingleton<Matchmaker>()
+				.AddSingleton<MatchExpirer>()
+				.AddSingleton(new SteamHandler(steamApiKey, lobbyPrefix))
+				.AddSingleton(clientConfig)
+				.AddSingleton<DiscordSocketClient>()
+				.AddSingleton<CommandServiceConfig>()
+				.AddSingleton<CommandService>()
 				.AddSingleton(interactionConfig)
-                .AddSingleton<InteractionService>()
+				.AddSingleton<InteractionService>()
 				.AddSingleton<ButtonMessageHandler>()
 				.AddSingleton<ButtonCleanser>()
 				.AddSingleton<SearchPropagationHandler>()
 				.AddSingleton<MatchListenHandler>()
 				.AddSingleton<TextCommandHandler>()
-                .AddSingleton<SlashCommandHandler>()
-                .AddSingleton<JokeHandler>();
+				.AddSingleton<SlashCommandHandler>()
+				.AddSingleton<JokeHandler>();
 
 			return collection.BuildServiceProvider();
-        }
+		}
 
-        public async Task RunAsync(string[] args) {
+		public async Task RunAsync(string[] args) {
 			var client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
 
 			client.Ready += async () => {
@@ -79,24 +78,24 @@ namespace DotemDiscord
 				_serviceProvider.GetRequiredService<ButtonCleanser>().Initialize();
 				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync();
 
-                var expirer = _serviceProvider.GetRequiredService<MatchExpirer>();
-                expirer.ExceptionHandler = (e) => ExceptionHandling.ReportExceptionToFile(e);
-                await expirer.StartClearingExpiredJoins();
+				var expirer = _serviceProvider.GetRequiredService<MatchExpirer>();
+				expirer.ExceptionHandler = (e) => ExceptionHandling.ReportExceptionToFile(e);
+				await expirer.StartClearingExpiredJoins();
 
 				await _serviceProvider.GetRequiredService<SlashCommandHandler>().InstallSlashCommandsAsync();
-                await _serviceProvider.GetRequiredService<TextCommandHandler>().InstallTextCommandsAsync();
-            };
+				await _serviceProvider.GetRequiredService<TextCommandHandler>().InstallTextCommandsAsync();
+			};
 
 			client.Log += async (msg) => {
-                Console.WriteLine(msg);
-                await Task.CompletedTask;
-            };
+				Console.WriteLine(msg);
+				await Task.CompletedTask;
+			};
 
 			var token = _config["BOT_TOKEN"];
-            await client.LoginAsync(TokenType.Bot, token);
-            await client.StartAsync();
+			await client.LoginAsync(TokenType.Bot, token);
+			await client.StartAsync();
 
 			await Task.Delay(Timeout.Infinite);
-        }
-    }
+		}
+	}
 }

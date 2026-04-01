@@ -13,7 +13,7 @@
 			SessionId = Guid.Parse(sessionId);
 			ServerId = serverId;
 			GameId = gameId;
-			MaxPlayerCount = (int) maxPlayerCount;
+			MaxPlayerCount = (int)maxPlayerCount;
 			Description = description;
 			GameName = string.IsNullOrEmpty(name) ? gameId : name;
 		}

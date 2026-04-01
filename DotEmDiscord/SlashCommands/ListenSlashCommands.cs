@@ -47,10 +47,9 @@ namespace DotemDiscord.SlashCommands {
 				var natural = MessageStructures.GetNaturalLanguageString(names.Values.ToArray());
 
 				await ModifyOriginalResponseAsync(x => {
-					x.Content = $"Listening for {natural} {(hours == null 
-						? "forever" 
-						: $"until <t:{DateTimeOffset.Now.AddHours((int)hours).ToUnixTimeSeconds()}:f>")
-					}.";
+					x.Content = $"Listening for {natural} {(hours == null
+						? "forever"
+						: $"until <t:{DateTimeOffset.Now.AddHours((int)hours).ToUnixTimeSeconds()}:f>")}.";
 				});
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);

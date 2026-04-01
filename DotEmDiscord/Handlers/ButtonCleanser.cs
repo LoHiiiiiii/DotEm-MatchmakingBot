@@ -10,7 +10,7 @@ namespace DotemDiscord.Handlers {
 		private readonly DiscordSocketClient _client;
 
 		private const int TIMEOUT_MILLISECONDS = 6000;
-		
+
 		public ButtonCleanser(
 			DiscordSocketClient client
 		) {

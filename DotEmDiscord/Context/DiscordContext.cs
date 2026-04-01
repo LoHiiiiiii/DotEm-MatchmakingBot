@@ -122,7 +122,7 @@ namespace DotemDiscord.Context {
 					WHERE
 						sessionId IN ({string.Join(",", sessionIds.Select((_, i) => "$g" + i))});
 				";
-				
+
 				command.Parameters.AddRange(sessionIds.Select((id, i) => new SqliteParameter("$g" + i, id)));
 
 				await command.ExecuteNonQueryAsync();

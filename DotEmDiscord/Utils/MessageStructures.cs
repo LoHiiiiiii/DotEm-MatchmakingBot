@@ -25,7 +25,7 @@ namespace DotemDiscord.Utils {
 		public static DateTimeOffset? GetDisplayedUserExpire(IEnumerable<SessionDetails> waits, ulong? userId) {
 			var stringId = userId?.ToString();
 
-			var userExpires = stringId == null 
+			var userExpires = stringId == null
 				? Enumerable.Empty<DateTimeOffset>()
 				: waits
 					.Where(w => w.UserExpires.ContainsKey(stringId))
@@ -128,7 +128,7 @@ namespace DotemDiscord.Utils {
 		}
 
 		public static (string? content, MessageComponent? components) GetSessionStoppedStructure(SessionStopReason? stopReason = null) {
-			return stopReason switch { 
+			return stopReason switch {
 				SessionStopReason.Joined => ("Match found.", null),
 				SessionStopReason.JoinedOther => ("Player matched in another search.", null),
 				SessionStopReason.Expired => ("Search expired.", null),

@@ -14,8 +14,7 @@ namespace DotemDiscord.Utils {
 					return;
 				}
 				await interaction.FollowupAsync(text: INTERNAL_ERROR, ephemeral: true);
-			}
-			catch(Exception e) {
+			} catch (Exception e) {
 				ReportExceptionToFile(e);
 			}
 		}

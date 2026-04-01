@@ -8,7 +8,7 @@ using DotemExtensions;
 namespace DotemDiscord.SlashCommands {
 	public class SteamSlashCommands : InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>> {
 
-		private readonly ExtensionContext _extensionContext; 
+		private readonly ExtensionContext _extensionContext;
 		private readonly SteamHandler _steamHandler;
 
 		public SteamSlashCommands(ExtensionContext extensionContext, SteamHandler steamHandler) {

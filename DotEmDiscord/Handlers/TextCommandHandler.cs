@@ -5,7 +5,7 @@ using System.Reflection;
 
 namespace DotemDiscord.Handlers {
 	public class TextCommandHandler {
-		private string[] prefixes = [ ".", "!" ];
+		private string[] prefixes = [".", "!"];
 
 		private readonly DiscordSocketClient _client;
 		private readonly CommandService _commandService;

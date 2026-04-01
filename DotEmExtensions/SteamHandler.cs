@@ -31,7 +31,7 @@ namespace DotemExtensions {
 				if (response == null) { return new SteamResult(); }
 				var players = (JArray?)response.GetValue("players");
 				if (players == null || !players.Any()) { return new SteamResult() { Successful = true, SteamIdBad = true }; }
-				var summary = (JObject?) players.First();
+				var summary = (JObject?)players.First();
 				if (summary == null) { return new SteamResult(); }
 
 				var hasName = summary.ContainsKey("personaname");
@@ -40,7 +40,7 @@ namespace DotemExtensions {
 				var lobbySteamId = summary.ContainsKey("lobbysteamid") ? summary["lobbysteamid"]?.ToString() : null;
 				var gameName = summary.ContainsKey("gameextrainfo") ? summary["gameextrainfo"]?.ToString() : null;
 
-				var lobbyLink = (gameId != null  && lobbySteamId != null) 
+				var lobbyLink = (gameId != null && lobbySteamId != null)
 					? $"{LobbyLinkPrefix}/{gameId}/{lobbySteamId}/{steamId}"
 					: null;
 

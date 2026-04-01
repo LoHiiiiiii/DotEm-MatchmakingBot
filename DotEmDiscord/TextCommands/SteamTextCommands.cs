@@ -32,13 +32,13 @@ namespace DotemDiscord.TextCommands {
 					return;
 				}
 				if (result.ProbablyPrivate) {
-					await Context.Message.ReplyAsync(text: 
+					await Context.Message.ReplyAsync(text:
 						$"Some info was found, but not the private info that is required for the link. Check your steam privacy settings."
 					);
 					return;
 				}
 				if (result.LobbyLink == null) {
-					await Context.Message.ReplyAsync(text:"No lobby found.");
+					await Context.Message.ReplyAsync(text: "No lobby found.");
 					return;
 				}
 				var prefix = result.GameName != null ? $"{result.GameName} - " : "";

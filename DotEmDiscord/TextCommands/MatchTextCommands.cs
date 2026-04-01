@@ -69,7 +69,7 @@ namespace DotemDiscord.TextCommands {
 					duration: searchDuration,
 					description: searchDescription
 				); ;
-				
+
 				await HandleSearchAsync(
 					gameIds: searchIds,
 					duration: searchDuration,

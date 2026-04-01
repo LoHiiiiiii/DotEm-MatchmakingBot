@@ -64,8 +64,7 @@ namespace DotemDiscord.Handlers {
 						sessionsToHandle.Remove(session.SessionId);
 					}
 				}
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 			} finally {
 				propagationSemaphore.Release();
@@ -124,8 +123,7 @@ namespace DotemDiscord.Handlers {
 				}
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
-			}
-			finally {
+			} finally {
 				propagationSemaphore.Release();
 			}
 		}

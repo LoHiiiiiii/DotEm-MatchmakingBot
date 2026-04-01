@@ -401,7 +401,7 @@ namespace DotemMatchmaker {
 			=> await TryJoinSessionAsync(userId, sessionId, DateTimeOffset.Now.AddMinutes(joinDuration ?? DefaultJoinDurationMinutes));
 
 
-		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, DateTimeOffset? expireTime) { 
+		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, DateTimeOffset? expireTime) {
 			if (expireTime == null) {
 				return await TryJoinSessionAsync(userId, sessionId);
 			}

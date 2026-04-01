@@ -85,8 +85,8 @@ namespace DotemDiscord.ButtonMessages {
 
 				var result = await _matchmaker.TryJoinSessionAsync(CreatorId.ToString(), guid, DurationMinutes);
 				if (result is not SessionResult.FailedToJoin
-					&& result is not SessionResult.NoAction) { 
-					ExitResult = result; 
+					&& result is not SessionResult.NoAction) {
+					ExitResult = result;
 				}
 				await UpdateMessageAsync();
 				await component.DeferAsync();
@@ -106,7 +106,7 @@ namespace DotemDiscord.ButtonMessages {
 
 		private async Task UpdateMessageAsync() {
 			if (
-				ExitResult != null 
+				ExitResult != null
 				|| (!JoinableSessions.Any() && SearchParams == null)
 			) {
 				await DeleteMessage();

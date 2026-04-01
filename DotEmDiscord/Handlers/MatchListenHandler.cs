@@ -86,7 +86,7 @@ namespace DotemDiscord.Handlers {
 				var attempts = 0;
 				var maxAttempts = 5;
 
-				while(attempts < maxAttempts) {
+				while (attempts < maxAttempts) {
 					attempts++;
 
 					result = await _buttonMessageHandler.GetSuggestionResultAsync(user, [session], durationMinutes: null, allowCancel: true, searchParams: null);
