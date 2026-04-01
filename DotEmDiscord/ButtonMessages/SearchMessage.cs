@@ -122,10 +122,14 @@ namespace DotemDiscord.ButtonMessages {
 		}
 
 		public async void ForceMessageUpdate() {
-			await messageSemaphore.WaitAsync();
 			try {
-				await UpdateMessageAsync();
-			} finally { messageSemaphore.Release(); }
+				await messageSemaphore.WaitAsync();
+				try {
+					await UpdateMessageAsync();
+				} finally { messageSemaphore.Release(); }
+			} catch (Exception e) {
+				ExceptionHandling.ReportExceptionToFile(e);
+			}
 		}
 
 		public async Task VerifySearchesAsync() {

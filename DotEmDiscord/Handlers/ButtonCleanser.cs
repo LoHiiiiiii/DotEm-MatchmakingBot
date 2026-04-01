@@ -31,17 +31,17 @@ namespace DotemDiscord.Handlers {
 		}
 
 		public async void DeleteFailedInteraction(SocketMessageComponent component) {
-			var message = component.Message;
-			if (message == null) { return; }
-			await Task.Delay(TIMEOUT_MILLISECONDS);
-			if (component.HasResponded) { return; }
 			try {
+				var message = component.Message;
+				if (message == null) { return; }
+				await Task.Delay(TIMEOUT_MILLISECONDS);
+				if (component.HasResponded) { return; }
 				await message.DeleteAsync();
 			} catch (Exception e) {
 				if (e is HttpException http && http.DiscordCode == DiscordErrorCode.UnknownMessage) {
 					return;
 				}
-				throw;
+				ExceptionHandling.ReportExceptionToFile(e);
 			}
 		}
 	}

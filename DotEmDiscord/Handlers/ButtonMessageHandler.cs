@@ -158,9 +158,19 @@ namespace DotemDiscord.Handlers {
 		) {
 			var structure = MessageStructures.GetWaitingStructure(searches, null);
 			IUserMessage? message = null;
-			try {
-				message = await messageChannel.SendMessageAsync(structure.content, components: structure.components);
-			} catch { }
+			for (int i = 0; i < 3; i++) {
+				try {
+					message = await messageChannel.SendMessageAsync(structure.content, components: structure.components);
+					break;
+				} catch (HttpException e) when (
+					e.DiscordCode == DiscordErrorCode.CannotSendMessageToUser ||
+					e.DiscordCode == DiscordErrorCode.MissingPermissions ||
+					e.DiscordCode == DiscordErrorCode.UnknownChannel
+				) { return null; } catch (Exception e) {
+					if (i == 2) { ExceptionHandling.ReportExceptionToFile(e); return null; }
+					await Task.Delay(1000);
+				}
+			}
 			if (message == null) { return null; }
 
 			var searchMessage = await CreateSearchMessageAsync(message, searches, creatorId);

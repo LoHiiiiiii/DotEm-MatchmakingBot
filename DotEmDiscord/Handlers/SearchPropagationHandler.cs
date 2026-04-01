@@ -1,4 +1,4 @@
-using DotemMatchmaker;
+﻿using DotemMatchmaker;
 using DotemModel;
 using DotemExtensions;
 using DotemDiscord.ButtonMessages;
@@ -46,8 +46,10 @@ namespace DotemDiscord.Handlers {
 		}
 
 		private async void HandleNewSearchMessages(SearchMessage searchMessage) {
-			await propagationSemaphore.WaitAsync();
+			var locked = false;
 			try {
+				await propagationSemaphore.WaitAsync();
+				locked = true;
 				if (!sessionsToHandle.Any()) { return; }
 
 				var existing = await _matchmaker.GetSessionsAsync(sessionsToHandle.Keys.ToArray());
@@ -67,12 +69,11 @@ namespace DotemDiscord.Handlers {
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 			} finally {
-				propagationSemaphore.Release();
+				if (locked) { propagationSemaphore.Release(); }
 			}
 		}
 
 		private async Task PostToMatchmakingBoardsAsync(IUserMessage message, IEnumerable<SessionDetails> postables) {
-
 			var boards = (await _extensionContext.GetMatchmakingBoardsAsync())
 				.Select<(string serverId, string channelId), (string serverId, ulong? channelId)>(pair => (
 					pair.serverId,
@@ -113,8 +114,10 @@ namespace DotemDiscord.Handlers {
 		}
 
 		public async void HandleSessionAdded(IEnumerable<SessionDetails> added) {
-			await propagationSemaphore.WaitAsync();
+			var locked = false;
 			try {
+				await propagationSemaphore.WaitAsync();
+				locked = true;
 				if (!added.Any()) { return; }
 
 				foreach (var session in added) {
@@ -124,7 +127,7 @@ namespace DotemDiscord.Handlers {
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 			} finally {
-				propagationSemaphore.Release();
+				if (locked) { propagationSemaphore.Release(); }
 			}
 		}
 	}

@@ -65,58 +65,60 @@ namespace DotemMatchmaker {
 		}
 
 		private async void HandleExpirationTask() {
-			await expirationSemaphore.WaitAsync();
-			bool clearExpireds = false;
-			CancellationToken token;
-			TimeSpan delay;
 			try {
-				if (!Expirations.Any()) {
-					return;
-				}
-				Expirations.Sort();
-				if (FirstExpiration != null
-				&& Expirations.First() >= FirstExpiration
-				&& FirstExpiration > DateTimeOffset.Now) {
-					return;
+				await expirationSemaphore.WaitAsync();
+				bool clearExpireds = false;
+				CancellationToken token;
+				TimeSpan delay;
+				try {
+					if (!Expirations.Any()) {
+						return;
+					}
+					Expirations.Sort();
+					if (FirstExpiration != null
+					&& Expirations.First() >= FirstExpiration
+					&& FirstExpiration > DateTimeOffset.Now) {
+						return;
+					}
+
+					if (Expirations.First() <= DateTime.Now) {
+						clearExpireds = true;
+						return;
+					}
+
+					ExpirationSource?.Cancel();
+					ExpirationSource = new CancellationTokenSource();
+					token = ExpirationSource.Token;
+					FirstExpiration = Expirations.First();
+					delay = FirstExpiration - DateTime.Now ?? TimeSpan.Zero;
+				} finally {
+					expirationSemaphore.Release();
+					if (clearExpireds) {
+						_ = TryClearExpiredsAsync();
+					}
 				}
 
-				if (Expirations.First() <= DateTime.Now) {
-					clearExpireds = true;
-					return;
+
+				try {
+					if (delay > TimeSpan.Zero) {
+						await Task.Delay(delay, token);
+					}
+				} catch (OperationCanceledException) { return; }
+
+				await expirationSemaphore.WaitAsync();
+				try {
+					if (!token.IsCancellationRequested) {
+						ExpirationSource = null;
+						FirstExpiration = null;
+					} else {
+						return;
+					}
+				} finally {
+					expirationSemaphore.Release();
 				}
 
-				ExpirationSource?.Cancel();
-				ExpirationSource = new CancellationTokenSource();
-				token = ExpirationSource.Token;
-				FirstExpiration = Expirations.First();
-				delay = FirstExpiration - DateTime.Now ?? TimeSpan.Zero;
-			} finally {
-				expirationSemaphore.Release();
-				if (clearExpireds) {
-					_ = TryClearExpiredsAsync();
-				}
-			}
-
-
-			try {
-				if (delay > TimeSpan.Zero) {
-					await Task.Delay(delay, token);
-				}
-			} catch (OperationCanceledException) { return; }
-
-			await expirationSemaphore.WaitAsync();
-			try {
-				if (!token.IsCancellationRequested) {
-					ExpirationSource = null;
-					FirstExpiration = null;
-				} else {
-					return;
-				}
-			} finally {
-				expirationSemaphore.Release();
-			}
-
-			_ = TryClearExpiredsAsync();
+				_ = TryClearExpiredsAsync();
+			} catch (Exception e) { ExceptionHandler?.Invoke(e); }
 		}
 
 		private void HandleUpdatedExpire(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped) {
@@ -138,15 +140,19 @@ namespace DotemMatchmaker {
 		}
 
 		private async void HandleNewExpireTimes(IEnumerable<SessionDetails> details) {
-			await expirationSemaphore.WaitAsync();
 			try {
-				Expirations = Expirations
-					.Concat(details.SelectMany(sd => sd.UserExpires.Values))
-					.Distinct()
-					.ToList();
-			} finally { expirationSemaphore.Release(); }
+				await expirationSemaphore.WaitAsync();
+				try {
+					Expirations = Expirations
+						.Concat(details.SelectMany(sd => sd.UserExpires.Values))
+						.Distinct()
+						.ToList();
+				} finally { expirationSemaphore.Release(); }
 
-			_ = TryClearExpiredsAsync();
+				_ = TryClearExpiredsAsync();
+			} catch (Exception e) {
+				ExceptionHandler?.Invoke(e);
+			}
 		}
 	}
 }

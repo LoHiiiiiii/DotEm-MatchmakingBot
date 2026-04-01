@@ -31,8 +31,10 @@ namespace DotemDiscord.Handlers {
 		}
 
 		public async void HandleNewSearchMessage(SearchMessage searchMessage) {
-			await suggestionSemaphore.WaitAsync();
+			var acquired = false;
 			try {
+				await suggestionSemaphore.WaitAsync();
+				acquired = true;
 				var added = searchMessage.Searches.Values
 					.Where(sessionsToSuggest.Contains);
 
@@ -51,13 +53,15 @@ namespace DotemDiscord.Handlers {
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 			} finally {
-				suggestionSemaphore.Release();
+				if (acquired) { suggestionSemaphore.Release(); }
 			}
 		}
 
 		public async void HandleSessionAdded(IEnumerable<SessionDetails> added) {
-			await suggestionSemaphore.WaitAsync();
+			var acquired = false;
 			try {
+				await suggestionSemaphore.WaitAsync();
+				acquired = true;
 				if (!added.Any()) { return; }
 
 				foreach (var session in added) {
@@ -67,7 +71,7 @@ namespace DotemDiscord.Handlers {
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 			} finally {
-				suggestionSemaphore.Release();
+				if (acquired) { suggestionSemaphore.Release(); }
 			}
 		}
 
