@@ -92,7 +92,7 @@ namespace DotemMatchmaker.Context {
 			LEFT JOIN userJoin ON
 				userJoin.sessionId = session.sessionId";
 
-		public async Task<IEnumerable<SessionDetails>> GetUserJoinableSessionsAsync(string serverId, string userId, IEnumerable<string>? gameIds = null) {
+		internal async Task<IEnumerable<SessionDetails>> GetUserJoinableSessionsAsync(string serverId, string userId, IEnumerable<string>? gameIds = null) {
 			using (var connection = GetOpenConnection()) {
 				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds?.ToArray())).Values.Distinct();
 
@@ -111,7 +111,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<IEnumerable<SessionDetails>> GetUserExistingSessionsAsync(string serverId, string userId) {
+		internal async Task<IEnumerable<SessionDetails>> GetUserExistingSessionsAsync(string serverId, string userId) {
 			using (var connection = GetOpenConnection()) {
 				var sql = @$"
 					SELECT 
@@ -135,7 +135,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<SessionDetails> CreateSessionAsync(string serverId, string userId, string gameId, int maxPlayerCount, string? description, DateTimeOffset expireTime) {
+		internal async Task<SessionDetails> CreateSessionAsync(string serverId, string userId, string gameId, int maxPlayerCount, string? description, DateTimeOffset expireTime) {
 			using (var connection = GetOpenConnection()) {
 				var aliasId = (await GetGameAliasesAsync(connection, serverId, gameId))[gameId];
 				var sessionId = Guid.NewGuid();
@@ -158,7 +158,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<SessionDetails?> JoinSessionAsync(Guid sessionId, string userId, DateTimeOffset expireTime) {
+		internal async Task<SessionDetails?> JoinSessionAsync(Guid sessionId, string userId, DateTimeOffset expireTime) {
 			using (var connection = GetOpenConnection()) {
 				return await JoinSessionAsync(connection, sessionId, userId, expireTime);
 			}
@@ -201,7 +201,7 @@ namespace DotemMatchmaker.Context {
 		}
 
 
-		public async Task<IEnumerable<SessionDetails>> GetSessionsAsync(params Guid[] sessionIds) {
+		internal async Task<IEnumerable<SessionDetails>> GetSessionsAsync(params Guid[] sessionIds) {
 			using (var connection = GetOpenConnection()) {
 				return await GetSessionsAsync(connection, sessionIds);
 			}
@@ -217,19 +217,19 @@ namespace DotemMatchmaker.Context {
 			return await SessionQueryAsync(connection, sql, new { sessionIds });
 		}
 
-		public async Task<IEnumerable<SessionDetails>> GetAllSessionsAsync() {
+		internal async Task<IEnumerable<SessionDetails>> GetAllSessionsAsync() {
 			using (var connection = GetOpenConnection()) {
 				return await SessionQueryAsync(connection, $"{sessionSelectBase};");
 			}
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveSessionsAsync(string userId, params Guid[] sessionIds) {
+		internal async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveSessionsAsync(string userId, params Guid[] sessionIds) {
 			using (var connection = GetOpenConnection()) {
 				return await RemoveJoinsFromSessionsAsync(connection, [userId], sessionIds);
 			}
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveAllSessionsAsync(params string[] userId) {
+		internal async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveAllSessionsAsync(params string[] userId) {
 			using (var connection = GetOpenConnection()) {
 				var sql = $@"
 					SELECT
@@ -246,14 +246,14 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<IEnumerable<Guid>> StopSessionsAsync(params Guid[] sessionIds) {
+		internal async Task<IEnumerable<Guid>> StopSessionsAsync(params Guid[] sessionIds) {
 			using (var connection = GetOpenConnection()) {
 				(var _, var stopped) = await RemoveJoinsFromSessionsAsync(connection, userIds: null, sessionIds);
 				return stopped;
 			}
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveGamesAsync(string userId, string serverId, params string[] gameIds) {
+		internal async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> LeaveGamesAsync(string userId, string serverId, params string[] gameIds) {
 			using (var connection = GetOpenConnection()) {
 				var aliasIds = (await GetGameAliasesAsync(connection, serverId, gameIds)).Values.Distinct();
 				if (!aliasIds.Any()) { return (Enumerable.Empty<SessionDetails>(), Enumerable.Empty<Guid>()); }
@@ -276,7 +276,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> ClearExpiredJoinsAsync() {
+		internal async Task<(IEnumerable<SessionDetails> updated, IEnumerable<Guid> stopped)> ClearExpiredJoinsAsync() {
 			using (var connection = GetOpenConnection()) {
 				var now = DateTimeOffset.Now;
 				var sql = @$"
@@ -387,7 +387,7 @@ namespace DotemMatchmaker.Context {
 		#endregion
 
 		#region Alias
-		public async Task<Dictionary<string, string>> GetGameAliasesAsync(string serverId, params string[]? gameIds) {
+		internal async Task<Dictionary<string, string>> GetGameAliasesAsync(string serverId, params string[]? gameIds) {
 			using (var connection = GetOpenConnection()) {
 				return await GetGameAliasesAsync(connection, serverId, gameIds);
 			}
@@ -422,7 +422,28 @@ namespace DotemMatchmaker.Context {
 			return aliasIds;
 		}
 
-		public async Task<Dictionary<string, string>> GetAllGameAliasesAsync(string serverId) {
+		internal async Task<IEnumerable<(string serverId, string gameId, string aliasGameId)>> GetAllGameAliasesWithServerAsync() {
+			using (var connection = GetOpenConnection()) {
+				var result = await connection.QueryAsync("SELECT serverId, gameId, aliasGameId FROM gameAlias");
+				return result
+					.Where(row => row?.serverId != null && row?.gameId != null && row?.aliasGameId != null)
+					.Select(row => ((string)row.serverId, (string)row.gameId, (string)row.aliasGameId));
+			}
+		}
+
+		internal async Task<Dictionary<string, string>> GetAllGameAliasesAsync() {
+			using (var connection = GetOpenConnection()) {
+				var sql = $@"SELECT gameId, aliasGameId FROM gameAlias";
+				var result = await connection.QueryAsync(sql);
+				return result
+					?.Where(row => row?.gameId != null && row?.aliasGameId != null)
+					?.GroupBy(row => (string)row.gameId)
+					?.ToDictionary(g => g.Key, g => (string)g.First().aliasGameId)
+					?? new();
+			}
+		}
+
+		internal async Task<Dictionary<string, string>> GetAllGameAliasesAsync(string serverId) {
 			using (var connection = GetOpenConnection()) {
 				var sql = $@"
 					SELECT 
@@ -445,7 +466,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task DeleteGameAliasesAsync(string serverId, params string[] gameIds) {
+		internal async Task DeleteGameAliasesAsync(string serverId, params string[] gameIds) {
 			if (!gameIds.Any()) { return; }
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();
@@ -466,7 +487,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<IEnumerable<SessionDetails>> AddGameAliasAsync(string serverId, string aliasGameId, params string[] gameIds) {
+		internal async Task<IEnumerable<SessionDetails>> AddGameAliasAsync(string serverId, string aliasGameId, params string[] gameIds) {
 			if (!gameIds.Any()) { return Enumerable.Empty<SessionDetails>(); }
 			using (var connection = GetOpenConnection()) {
 
@@ -605,7 +626,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<Dictionary<string, string>> GetAllGameNamesAsync(string serverId) {
+		internal async Task<Dictionary<string, string>> GetAllGameNamesAsync(string serverId) {
 			using (var connection = GetOpenConnection()) {
 				var sql = $@"
 					SELECT 
@@ -628,7 +649,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task DeleteGameNamesAsync(string serverId, params string[] gameIds) {
+		internal async Task DeleteGameNamesAsync(string serverId, params string[] gameIds) {
 			if (!gameIds.Any()) { return; }
 			using (var connection = GetOpenConnection()) {
 
@@ -651,7 +672,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		public async Task<IEnumerable<SessionDetails>> AddGameNameAsync(string serverId, string gameId, string name) {
+		internal async Task<IEnumerable<SessionDetails>> AddGameNameAsync(string serverId, string gameId, string name) {
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();
 
@@ -767,7 +788,7 @@ namespace DotemMatchmaker.Context {
 		#endregion
 
 		#region Game Defaults
-		public async Task<Dictionary<string, (int? maxPlayerCount, string? description)>> GetGameDefaultsAsync(string serverId, params string[] gameIds) {
+		internal async Task<Dictionary<string, (int? maxPlayerCount, string? description)>> GetGameDefaultsAsync(string serverId, params string[] gameIds) {
 			if (!gameIds.Any()) {
 				return new Dictionary<string, (int? maxPlayerCount, string? description)>();
 			}

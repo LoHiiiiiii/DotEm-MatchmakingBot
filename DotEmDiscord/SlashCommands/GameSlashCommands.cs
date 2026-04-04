@@ -1,4 +1,4 @@
-﻿
+
 using Discord.Interactions;
 using Discord.WebSocket;
 using DotemDiscord.Utils;

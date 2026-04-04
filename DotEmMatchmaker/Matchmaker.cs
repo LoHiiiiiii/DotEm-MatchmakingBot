@@ -25,6 +25,8 @@ namespace DotemMatchmaker {
 			ExpireClearIntervalMilliseconds = expireClearIntervalMinutes * 1000 * 60;
 		}
 
+		public virtual Task InitializeAsync() => Task.CompletedTask;
+
 		public delegate void SessionChangedEvent(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped);
 
 		public event SessionChangedEvent? SessionChanged;
@@ -190,7 +192,7 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, DateTimeOffset expireTime) {
+		public virtual async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, DateTimeOffset expireTime) {
 			await sessionSemaphore.WaitAsync();
 			try {
 				var clear = await _context.ClearExpiredJoinsAsync();
@@ -222,7 +224,7 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task ClearExpiredJoinsAsync() {
+		public virtual async Task ClearExpiredJoinsAsync() {
 			await sessionSemaphore.WaitAsync();
 			try {
 				var (updatedSessions, stoppedSessions) = await _context.ClearExpiredJoinsAsync();
@@ -236,7 +238,7 @@ namespace DotemMatchmaker {
 		}
 
 		#region Leaving Sessions
-		public async Task<(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped)> LeaveSessionsAsync(string userId, params Guid[] sessionIds) {
+		public virtual async Task<(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped)> LeaveSessionsAsync(string userId, params Guid[] sessionIds) {
 			await sessionSemaphore.WaitAsync();
 			try {
 				(var updatedSessions, var stoppedSessions) = await _context.LeaveSessionsAsync(userId, sessionIds);
@@ -254,7 +256,7 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped)> LeaveGamesAsync(string serverId, string userId, params string[] gameIds) {
+		public virtual async Task<(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped)> LeaveGamesAsync(string serverId, string userId, params string[] gameIds) {
 			await sessionSemaphore.WaitAsync();
 			try {
 				(var updatedSessions, var stoppedSessions) = await _context.LeaveGamesAsync(userId, serverId, gameIds);
@@ -272,7 +274,7 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped)> LeaveAllPlayerSessionsAsync(string serverId, string userId) {
+		public virtual async Task<(IEnumerable<SessionDetails> updated, Dictionary<Guid, SessionStopReason> stopped)> LeaveAllPlayerSessionsAsync(string serverId, string userId) {
 			await sessionSemaphore.WaitAsync();
 			try {
 				(var updatedSessions, var stoppedSessions) = await _context.LeaveAllSessionsAsync(userId);
@@ -293,24 +295,24 @@ namespace DotemMatchmaker {
 		#endregion
 
 		#region Session Getting
-		public async Task<IEnumerable<SessionDetails>> GetSessionsAsync(params Guid[] ids) {
+		public virtual async Task<IEnumerable<SessionDetails>> GetSessionsAsync(params Guid[] ids) {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetSessionsAsync(ids); } finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<IEnumerable<SessionDetails>> GetAllSessionsAsync() {
+		public virtual async Task<IEnumerable<SessionDetails>> GetAllSessionsAsync() {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetAllSessionsAsync(); } finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<IEnumerable<SessionDetails>> GetUserSessionsAsync(string serverId, string userId) {
+		public virtual async Task<IEnumerable<SessionDetails>> GetUserSessionsAsync(string serverId, string userId) {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetUserExistingSessionsAsync(serverId, userId); } finally { sessionSemaphore.Release(); }
 		}
 		#endregion
 
 		#region Alias Handling
-		public async Task AddGameAliasAsync(string serverId, string aliasId, params string[] gameIds) {
+		public virtual async Task AddGameAliasAsync(string serverId, string aliasId, params string[] gameIds) {
 			await sessionSemaphore.WaitAsync();
 			try {
 				var updated = await _context.AddGameAliasAsync(serverId, aliasId, gameIds);
@@ -322,16 +324,21 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<Dictionary<string, string>> GetAllGameAliasesAsync(string serverId) {
+		public virtual async Task<Dictionary<string, string>> GetAllGameAliasesAsync(string serverId) {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetAllGameAliasesAsync(serverId); } finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<Dictionary<string, string>> GetGameAliasesAsync(string serverId, params string[] gameIds) {
+		public virtual async Task<IEnumerable<(string serverId, string gameId, string aliasGameId)>> GetAllGameAliasesWithServerAsync() {
+			await sessionSemaphore.WaitAsync();
+			try { return await _context.GetAllGameAliasesWithServerAsync(); } finally { sessionSemaphore.Release(); }
+		}
+
+		public virtual async Task<Dictionary<string, string>> GetGameAliasesAsync(string serverId, params string[] gameIds) {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetGameAliasesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
 		}
-		public async Task DeleteGameAliasesAsync(string serverId, params string[] gameIds) {
+		public virtual async Task DeleteGameAliasesAsync(string serverId, params string[] gameIds) {
 			await sessionSemaphore.WaitAsync();
 			try { await _context.DeleteGameAliasesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
 		}
@@ -339,7 +346,7 @@ namespace DotemMatchmaker {
 		#endregion
 
 		#region Game Name Handling
-		public async Task AddGameNameAsync(string serverId, string gameName, string gameId) {
+		public virtual async Task AddGameNameAsync(string serverId, string gameName, string gameId) {
 			await sessionSemaphore.WaitAsync();
 			try {
 				var updated = await _context.AddGameNameAsync(serverId, gameName, gameId);
@@ -351,17 +358,17 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<Dictionary<string, string>> GetAllGameNamesAsync(string serverId) {
+		public virtual async Task<Dictionary<string, string>> GetAllGameNamesAsync(string serverId) {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetAllGameNamesAsync(serverId); } finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task<Dictionary<string, string>> GetGameNamesAsync(string serverId, params string[] gameIds) {
+		public virtual async Task<Dictionary<string, string>> GetGameNamesAsync(string serverId, params string[] gameIds) {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetGameNamesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
 		}
 
-		public async Task DeleteGameNamesAsync(string serverId, params string[] gameIds) {
+		public virtual async Task DeleteGameNamesAsync(string serverId, params string[] gameIds) {
 			await sessionSemaphore.WaitAsync();
 			try { await _context.DeleteGameNamesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
 		}
@@ -369,7 +376,7 @@ namespace DotemMatchmaker {
 		#endregion
 
 		#region Overloads
-		public async Task<SessionResult> SearchSessionAsync(
+		public virtual async Task<SessionResult> SearchSessionAsync(
 			string serverId,
 			string userId,
 			int? joinDuration = null,
@@ -397,11 +404,11 @@ namespace DotemMatchmaker {
 			);
 		}
 
-		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, int? joinDuration = null)
+		public virtual async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, int? joinDuration = null)
 			=> await TryJoinSessionAsync(userId, sessionId, DateTimeOffset.Now.AddMinutes(joinDuration ?? DefaultJoinDurationMinutes));
 
 
-		public async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, DateTimeOffset? expireTime) {
+		public virtual async Task<SessionResult> TryJoinSessionAsync(string userId, Guid sessionId, DateTimeOffset? expireTime) {
 			if (expireTime == null) {
 				return await TryJoinSessionAsync(userId, sessionId);
 			}

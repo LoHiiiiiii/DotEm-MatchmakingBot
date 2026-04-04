@@ -47,7 +47,7 @@ namespace DotemDiscord {
 				.AddSingleton<MatchmakingContext>()
 				.AddSingleton<ExtensionContext>()
 				.AddSingleton<DiscordContext>()
-				.AddSingleton<Matchmaker>()
+				.AddSingleton<Matchmaker, ExtendedMatchmaker>()
 				.AddSingleton<MatchExpirer>()
 				.AddSingleton(new SteamHandler(steamApiKey, lobbyPrefix))
 				.AddSingleton(clientConfig)
@@ -67,13 +67,14 @@ namespace DotemDiscord {
 			return collection.BuildServiceProvider();
 		}
 
-		public async Task RunAsync(string[] args) {
+		public async Task RunAsync(string[] _) {
 			var client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
 
 			client.Ready += async () => {
 				_serviceProvider.GetRequiredService<DiscordContext>().Initialize();
 				_serviceProvider.GetRequiredService<MatchmakingContext>().Initialize();
 				_serviceProvider.GetRequiredService<ExtensionContext>().Initialize();
+				await _serviceProvider.GetRequiredService<Matchmaker>().InitializeAsync();
 				_serviceProvider.GetRequiredService<MatchListenHandler>().Initialize();
 				_serviceProvider.GetRequiredService<ButtonCleanser>().Initialize();
 				await _serviceProvider.GetRequiredService<ButtonMessageHandler>().CreatePreExistingSearchMessagesAsync();

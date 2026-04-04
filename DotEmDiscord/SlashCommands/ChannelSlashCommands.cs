@@ -11,10 +11,12 @@ namespace DotemDiscord.SlashCommands {
 
 		private readonly ExtensionContext _extensionContext;
 		private readonly SearchPropagationHandler _searchPropagationHandler;
+		private readonly ExtendedMatchmaker _matchmaker;
 
-		public ChannelSlashCommands(ExtensionContext extensionContext, SearchPropagationHandler searchPropagationHandler) {
+		public ChannelSlashCommands(ExtensionContext extensionContext, SearchPropagationHandler searchPropagationHandler, ExtendedMatchmaker matchmaker) {
 			_extensionContext = extensionContext;
 			_searchPropagationHandler = searchPropagationHandler;
+			_matchmaker = matchmaker;
 		}
 
 		[EnabledInDm(false)]
@@ -45,9 +47,10 @@ namespace DotemDiscord.SlashCommands {
 					return;
 				}
 
-				await _extensionContext.SetChannelDefaultParametersAsync(
+				await _matchmaker.SetChannelDefaultAsync(
+					Context.Guild.Id.ToString(),
 					Context.Channel.Id.ToString(),
-					gameIds: string.Join(" ", ContentFilter.CapSymbolCount(split)),
+					gameIds: ContentFilter.CapSymbolCount(split),
 					maxPlayerCount: maxPlayerCount != null ? ContentFilter.CapPlayerCount((int)maxPlayerCount) : maxPlayerCount,
 					duration: time != null ? ContentFilter.CapSearchDuration((int)time) : time,
 					description: description != null ? ContentFilter.CapSymbolCount(description) : description

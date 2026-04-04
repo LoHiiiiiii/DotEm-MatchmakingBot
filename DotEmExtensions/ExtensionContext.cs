@@ -21,6 +21,7 @@ namespace DotemExtensions {
 				@"
 					CREATE TABLE IF NOT EXISTS channelDefault (
 						channelId TEXT PRIMARY KEY NOT NULL,
+						serverId TEXT NOT NULL DEFAULT '',
 						gameIds TEXT NOT NULL,
 						maxPlayerCount INT,
 						duration INT,
@@ -112,15 +113,16 @@ namespace DotemExtensions {
 			}
 		}
 
-		public async Task SetChannelDefaultParametersAsync(string channelId, string gameIds, int? maxPlayerCount, int? duration, string? description) {
+		internal async Task SetChannelDefaultParametersAsync(string channelId, string serverId, string gameIds, int? maxPlayerCount, int? duration, string? description) {
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();
 				command.CommandText = @"
 					INSERT INTO
 						channelDefault
-					VALUES ($channelId, $gameIds, $maxPlayerCount, $duration, $description)
+					VALUES ($channelId, $serverId, $gameIds, $maxPlayerCount, $duration, $description)
 					ON CONFLICT (channelId)
 					DO UPDATE SET
+						serverId = excluded.serverId,
 						gameIds = excluded.gameIds,
 						maxPlayerCount = excluded.maxPlayerCount,
 						duration = excluded.duration,
@@ -128,12 +130,67 @@ namespace DotemExtensions {
 				";
 
 				command.Parameters.AddWithValue("$channelId", channelId);
+				command.Parameters.AddWithValue("$serverId", serverId);
 				command.Parameters.AddWithValue("$gameIds", gameIds);
 				command.Parameters.AddWithValue("$maxPlayerCount", maxPlayerCount == null ? DBNull.Value : maxPlayerCount);
 				command.Parameters.AddWithValue("$duration", duration == null ? DBNull.Value : duration);
 				command.Parameters.AddWithValue("$description", description == null ? DBNull.Value : description);
 
 				await command.ExecuteNonQueryAsync();
+			}
+		}
+
+		internal async Task MatchChannelDefaultIdsToAliasesAsync(IEnumerable<(string serverId, string gameId, string aliasGameId)> allAliases) {
+			using var connection = GetOpenConnection();
+			var byServer = allAliases
+				.GroupBy(a => a.serverId)
+				.ToDictionary(g => g.Key, g => g.ToDictionary(a => a.gameId.ToLowerInvariant(), a => a.aliasGameId));
+			var rows = await connection.QueryAsync("SELECT channelId, serverId, gameIds FROM channelDefault");
+			foreach (var row in rows) {
+				var rowServerId = (string)row.serverId;
+				if (!byServer.TryGetValue(rowServerId, out var aliases)) continue;
+				var ids = ((string)row.gameIds).Split(" ");
+				var updated = ids
+					.Select(id => aliases.TryGetValue(id.ToLowerInvariant(), out var root) ? root : id)
+					.Distinct()
+					.ToArray();
+				if (ids.ToHashSet().SetEquals(updated)) continue;
+				await connection.ExecuteAsync(
+					"UPDATE channelDefault SET gameIds = @gameIds WHERE channelId = @channelId",
+					new { gameIds = string.Join(" ", updated), channelId = (string)row.channelId }
+				);
+			}
+		}
+
+		internal async Task<IEnumerable<(string channelId, string gameIds)>> UpdateChannelDefaultGameIdsAsync(string serverId, string newId, params string[] oldIds) {
+			using var connection = GetOpenConnection();
+			var rows = await connection.QueryAsync(
+				"SELECT channelId, gameIds FROM channelDefault WHERE serverId = @serverId",
+				new { serverId }
+			);
+			var affected = new List<(string channelId, string gameIds)>();
+			foreach (var row in rows) {
+				var ids = ((string)row.gameIds).Split(" ");
+				if (!ids.Any(id => oldIds.Contains(id, StringComparer.OrdinalIgnoreCase))) continue;
+				affected.Add(((string)row.channelId, (string)row.gameIds));
+				var updated = ids
+					.Select(id => oldIds.Contains(id, StringComparer.OrdinalIgnoreCase) ? newId : id)
+					.Distinct();
+				await connection.ExecuteAsync(
+					"UPDATE channelDefault SET gameIds = @gameIds WHERE channelId = @channelId",
+					new { gameIds = string.Join(" ", updated), channelId = (string)row.channelId }
+				);
+			}
+			return affected;
+		}
+
+		internal async Task RestoreChannelDefaultGameIdsAsync(IEnumerable<(string channelId, string gameIds)> entries) {
+			using var connection = GetOpenConnection();
+			foreach (var (channelId, gameIds) in entries) {
+				await connection.ExecuteAsync(
+					"UPDATE channelDefault SET gameIds = @gameIds WHERE channelId = @channelId",
+					new { gameIds, channelId }
+				);
 			}
 		}
 
@@ -152,9 +209,97 @@ namespace DotemExtensions {
 				await command.ExecuteNonQueryAsync();
 			}
 		}
+
+		public async Task MigrateChannelDefaultServerIdsAsync(Func<string, Task<string?>> resolveServerId) {
+			using var connection = GetOpenConnection();
+
+			try {
+				var alter = connection.CreateCommand();
+				alter.CommandText = "ALTER TABLE channelDefault ADD COLUMN serverId TEXT NOT NULL DEFAULT '';";
+				await alter.ExecuteNonQueryAsync();
+				Console.WriteLine("Added serverId column.");
+			} catch {
+				Console.WriteLine("serverId column already exists.");
+			}
+
+			var channelIds = (await connection.QueryAsync<string>(
+				"SELECT channelId FROM channelDefault WHERE serverId = ''"
+			)).ToArray();
+
+			Console.WriteLine($"Migrating {channelIds.Length} entries...");
+
+			foreach (var channelId in channelIds) {
+				var serverId = await resolveServerId(channelId);
+				if (serverId == null) {
+					Console.WriteLine($"  Could not resolve server for channel {channelId}, skipping.");
+					continue;
+				}
+				await connection.ExecuteAsync(
+					"UPDATE channelDefault SET serverId = @serverId WHERE channelId = @channelId",
+					new { serverId, channelId }
+				);
+				Console.WriteLine($"  Channel {channelId} → server {serverId}");
+			}
+
+			Console.WriteLine("Migration complete.");
+		}
 		#endregion
 
 		#region Rematch
+
+		internal async Task<IEnumerable<(string serverId, string userId, string gameIds)>> UpdateRematchGameIdsAsync(string serverId, string newId, params string[] oldIds) {
+			using var connection = GetOpenConnection();
+			var rows = await connection.QueryAsync(
+				"SELECT serverId, userId, gameIds FROM userRematch WHERE serverId = @serverId",
+				new { serverId }
+			);
+			var affected = new List<(string serverId, string userId, string gameIds)>();
+			foreach (var row in rows) {
+				var ids = ((string)row.gameIds).Split(" ");
+				if (!ids.Any(id => oldIds.Contains(id, StringComparer.OrdinalIgnoreCase))) continue;
+				affected.Add(((string)row.serverId, (string)row.userId, (string)row.gameIds));
+				var updated = ids
+					.Select(id => oldIds.Contains(id, StringComparer.OrdinalIgnoreCase) ? newId : id)
+					.Distinct();
+				await connection.ExecuteAsync(
+					"UPDATE userRematch SET gameIds = @gameIds WHERE serverId = @serverId AND userId = @userId",
+					new { gameIds = string.Join(" ", updated), serverId = (string)row.serverId, userId = (string)row.userId }
+				);
+			}
+			return affected;
+		}
+
+		internal async Task RestoreRematchGameIdsAsync(IEnumerable<(string serverId, string userId, string gameIds)> entries) {
+			using var connection = GetOpenConnection();
+			foreach (var (serverId, userId, gameIds) in entries) {
+				await connection.ExecuteAsync(
+					"UPDATE userRematch SET gameIds = @gameIds WHERE serverId = @serverId AND userId = @userId",
+					new { gameIds, serverId, userId }
+				);
+			}
+		}
+
+		internal async Task MatchRematchIdsToAliasesAsync(IEnumerable<(string serverId, string gameId, string aliasGameId)> allAliases) {
+			using var connection = GetOpenConnection();
+			var byServer = allAliases
+				.GroupBy(a => a.serverId)
+				.ToDictionary(g => g.Key, g => g.ToDictionary(a => a.gameId.ToLowerInvariant(), a => a.aliasGameId));
+			var rows = await connection.QueryAsync("SELECT serverId, userId, gameIds FROM userRematch");
+			foreach (var row in rows) {
+				var rowServerId = (string)row.serverId;
+				if (!byServer.TryGetValue(rowServerId, out var aliases)) continue;
+				var ids = ((string)row.gameIds).Split(" ");
+				var updated = ids
+					.Select(id => aliases.TryGetValue(id.ToLowerInvariant(), out var root) ? root : id)
+					.Distinct()
+					.ToArray();
+				if (ids.ToHashSet().SetEquals(updated)) continue;
+				await connection.ExecuteAsync(
+					"UPDATE userRematch SET gameIds = @gameIds WHERE serverId = @serverId AND userId = @userId",
+					new { gameIds = string.Join(" ", updated), serverId = rowServerId, userId = (string)row.userId }
+				);
+			}
+		}
 
 		public async Task<(string[] gameIds, int? maxPlayerCount, int? duration, string? description)?> GetUserRematchParameters(string serverId, string userId) {
 			using (var connection = GetOpenConnection()) {
