@@ -762,6 +762,31 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
+		public async Task<IEnumerable<(string gameId, DateTimeOffset? expireTime)>> GetUserServerListensAsync(string serverId, string userId) {
+			using var connection = GetOpenConnection();
+			var now = DateTimeOffset.Now;
+			var result = await connection.QueryAsync(
+				"SELECT gameId, expireTime FROM listen WHERE serverId = $serverId AND userId = $userId AND (expireTime IS NULL OR expireTime > $now)",
+				new { serverId, userId, now });
+			return result.Select(row => (
+				(string)row.gameId,
+				DateTimeOffset.TryParse((string?)row.expireTime, out var dt) ? (DateTimeOffset?)dt : null
+			));
+		}
+
+		public async Task<IEnumerable<(string serverId, string gameId, DateTimeOffset? expireTime)>> GetUserListensAsync(string userId) {
+			using var connection = GetOpenConnection();
+			var now = DateTimeOffset.Now;
+			var result = await connection.QueryAsync(
+				"SELECT serverId, gameId, expireTime FROM listen WHERE userId = $userId AND (expireTime IS NULL OR expireTime > $now)",
+				new { userId, now });
+			return result.Select(row => (
+				(string)row.serverId,
+				(string)row.gameId,
+				DateTimeOffset.TryParse((string?)row.expireTime, out var dt) ? (DateTimeOffset?)dt : null
+			));
+		}
+
 		public async Task DeleteMatchListensAsync(string serverId, string userId, params string[] gameIds) {
 			using (var connection = GetOpenConnection()) {
 				var command = connection.CreateCommand();

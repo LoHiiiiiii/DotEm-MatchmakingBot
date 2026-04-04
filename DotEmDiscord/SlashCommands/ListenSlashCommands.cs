@@ -39,7 +39,7 @@ namespace DotemDiscord.SlashCommands {
 
 				var serverId = Context.Guild.Id.ToString();
 
-				var names = (await _matchmaker.GetGameNamesAsync(serverId, idArray));
+				var names = await _matchmaker.GetGameNamesAsync(serverId, idArray);
 
 				DateTimeOffset? expireTime = hours != null ? DateTimeOffset.Now.AddHours((double)hours!) : null;
 				await _matchmakingContext.AddMatchListenAsync(serverId, Context.User.Id.ToString(), expireTime, idArray);
@@ -51,6 +51,67 @@ namespace DotemDiscord.SlashCommands {
 						? "forever"
 						: $"until <t:{DateTimeOffset.Now.AddHours((int)hours).ToUnixTimeSeconds()}:f>")}.";
 				});
+			} catch (Exception e) {
+				ExceptionHandling.ReportExceptionToFile(e);
+				if (e is TimeoutException) return;
+				if (e is HttpException unknown && unknown.DiscordCode == DiscordErrorCode.UnknownInteraction) return;
+				if (e is HttpException acknowledged && acknowledged.DiscordCode == DiscordErrorCode.InteractionHasAlreadyBeenAcknowledged) return;
+				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
+			}
+		}
+
+		[SlashCommand("show-listens", "Shows what games you are listening for.")]
+		public async Task ShowListensSlashCommandAsync() {
+			try {
+				await DeferAsync(ephemeral: true);
+
+				var userId = Context.User.Id.ToString();
+
+				static string ExpiryString(DateTimeOffset? expireTime) => expireTime == null
+					? "forever"
+					: $"until <t:{expireTime.Value.ToUnixTimeSeconds()}:f>";
+
+				if (Context.Guild != null) {
+					var serverId = Context.Guild.Id.ToString();
+					var listens = (await _matchmakingContext.GetUserServerListensAsync(serverId, userId)).ToArray();
+
+					if (!listens.Any()) {
+						await ModifyOriginalResponseAsync(x => { x.Content = "Not listening for any games in this server."; });
+						return;
+					}
+
+					var names = await _matchmakingContext.GetGameNamesAsync(serverId, [.. listens.Select(l => l.gameId)]);
+					var lines = listens.Select(l => {
+						var name = names.GetValueOrDefault(l.gameId, l.gameId);
+						var display = name != l.gameId ? $"{name} ({l.gameId})" : l.gameId;
+						return $"- {display}: {ExpiryString(l.expireTime)}";
+					});
+					await ModifyOriginalResponseAsync(x => { x.Content = string.Join("\n", lines); });
+				} else {
+					var listens = (await _matchmakingContext.GetUserListensAsync(userId)).ToArray();
+
+					if (!listens.Any()) {
+						await ModifyOriginalResponseAsync(x => { x.Content = "Not listening for any games."; });
+						return;
+					}
+
+					var sections = new List<string>();
+
+					foreach (var serverGroup in listens.GroupBy(l => l.serverId)) {
+						var guild = Context.Client.GetGuild(ulong.Parse(serverGroup.Key));
+						var serverName = guild?.Name ?? serverGroup.Key;
+						var serverGameIds = serverGroup.Select(l => l.gameId).ToArray();
+						var names = await _matchmakingContext.GetGameNamesAsync(serverGroup.Key, serverGameIds);
+						var gameLines = serverGroup.Select(l => {
+							var name = names.GetValueOrDefault(l.gameId, l.gameId);
+							var display = name != l.gameId ? $"{name} ({l.gameId})" : l.gameId;
+							return $"- {display}: {ExpiryString(l.expireTime)}";
+						});
+						sections.Add($"**{serverName}**\n{string.Join("\n", gameLines)}");
+					}
+
+					await ModifyOriginalResponseAsync(x => { x.Content = string.Join("\n\n", sections); });
+				}
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
