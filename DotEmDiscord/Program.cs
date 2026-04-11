@@ -48,6 +48,7 @@ namespace DotemDiscord {
 				.AddSingleton<ExtensionContext>()
 				.AddSingleton<DiscordContext>()
 				.AddSingleton<Matchmaker, ExtendedMatchmaker>()
+				.AddSingleton(sp => (ExtendedMatchmaker)sp.GetRequiredService<Matchmaker>())
 				.AddSingleton<MatchExpirer>()
 				.AddSingleton(new SteamHandler(steamApiKey, lobbyPrefix))
 				.AddSingleton(clientConfig)
