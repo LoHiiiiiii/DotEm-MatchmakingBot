@@ -135,20 +135,18 @@ namespace DotemMatchmaker {
 					foreach (var attempt in uniqueSearches) {
 
 						var existingSession = joinedSessions
-							.Where(match =>
+							.FirstOrDefault(match =>
 								match.GameId == attempt.gameId
 								&& match.MaxPlayerCount == attempt.playerCount
-								&& match.Description == attempt.description)
-							.FirstOrDefault();
+								&& match.Description == attempt.description);
 
 
 						if (existingSession == null) {
 							existingSession = exactDescriptionlessNotPlayable
-							.Where(match =>
+							.FirstOrDefault(match =>
 								match.GameId == attempt.gameId
 								&& match.MaxPlayerCount == attempt.playerCount
-								&& match.Description == attempt.description)
-							.FirstOrDefault();
+								&& match.Description == attempt.description);
 						}
 
 						if (existingSession != null) {

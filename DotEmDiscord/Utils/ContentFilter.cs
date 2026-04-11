@@ -25,11 +25,11 @@ namespace DotemDiscord.Utils {
 		}
 
 		public static int CapSearchDuration(int duration) {
-			return Math.Clamp(duration, 0, MAX_SEARCH_DURATION);
+			return Math.Clamp(duration, 1, MAX_SEARCH_DURATION);
 		}
 
 		public static int CapPlayerCount(int count) {
-			return Math.Clamp(count, 0, MAX_PLAYER_COUNT);
+			return Math.Clamp(count, 2, MAX_PLAYER_COUNT);
 		}
 
 		public static string[] CapSymbolCount(IEnumerable<string> ids) {

@@ -95,10 +95,10 @@ namespace DotemDiscord.TextCommands {
 					return;
 				}
 
-				var result = (await _extensionContext.GetUserRematchParameters(
+				var result = await _extensionContext.GetUserRematchParameters(
 					Context.Guild.Id.ToString(),
 					Context.User.Id.ToString()
-				));
+				);
 
 				if (!result.HasValue) {
 					await Context.Message.ReplyAsync(

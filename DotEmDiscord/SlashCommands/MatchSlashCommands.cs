@@ -110,10 +110,10 @@ namespace DotemDiscord.SlashCommands {
 			try {
 				await DeferAsync();
 
-				var result = (await _extensionContext.GetUserRematchParameters(
+				var result = await _extensionContext.GetUserRematchParameters(
 					Context.Guild.Id.ToString(),
 					Context.User.Id.ToString()
-				));
+				);
 
 				if (!result.HasValue) {
 					await ModifyOriginalResponseAsync(x => {
