@@ -3,16 +3,19 @@ using DotemDiscord.Utils;
 using Discord;
 using DotemMatchmaker;
 using DotemMatchmaker.Context;
+using DotemExtensions;
 
 namespace DotemDiscord.SlashCommands {
 	public class ListenTextCommands : ModuleBase<SocketCommandContext> {
 
 		private readonly Matchmaker _matchmaker;
 		private readonly MatchmakingContext _matchmakingContext;
+		private readonly ExtensionContext _extensionContext;
 
-		public ListenTextCommands(Matchmaker matchmaker, MatchmakingContext matchmakingContext) {
+		public ListenTextCommands(Matchmaker matchmaker, MatchmakingContext matchmakingContext, ExtensionContext extensionContext) {
 			_matchmaker = matchmaker;
 			_matchmakingContext = matchmakingContext;
+			_extensionContext = extensionContext;
 		}
 
 		[Command("l", RunMode = RunMode.Async)]
@@ -41,9 +44,16 @@ namespace DotemDiscord.SlashCommands {
 				}
 
 				(var rawIds, var hours) = ParseCommands(commands);
-				var gameIds = ContentFilter.CapSymbolCount(rawIds);
+				var gameIds = ContentFilter.CapSymbolCount(rawIds)
+					.Where(s => !string.IsNullOrWhiteSpace(s))
+					.ToArray();
 
-				if (!gameIds.Any(s => !string.IsNullOrWhiteSpace(s))) {
+				if (gameIds.Length == 0) {
+					var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamatersAsync(Context.Channel.Id.ToString());
+					gameIds = channelDefaults.gameIds;
+				}
+
+				if (gameIds.Length == 0) {
 					await Context.Message.ReplyAsync(
 						text: "Please give non-empty Game Ids.",
 						allowedMentions: AllowedMentions.None

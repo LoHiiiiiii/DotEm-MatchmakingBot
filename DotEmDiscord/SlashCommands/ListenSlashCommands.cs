@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using DotemDiscord.Utils;
 using DotemMatchmaker;
 using DotemMatchmaker.Context;
+using DotemExtensions;
 using Discord;
 using Discord.Net;
 
@@ -11,19 +12,21 @@ namespace DotemDiscord.SlashCommands {
 
 		private readonly Matchmaker _matchmaker;
 		private readonly MatchmakingContext _matchmakingContext;
+		private readonly ExtensionContext _extensionContext;
 
-		public ListenSlashCommands(Matchmaker matchmaker, MatchmakingContext matchmakingContext) {
+		public ListenSlashCommands(Matchmaker matchmaker, MatchmakingContext matchmakingContext, ExtensionContext extensionContext) {
 			_matchmaker = matchmaker;
 			_matchmakingContext = matchmakingContext;
+			_extensionContext = extensionContext;
 		}
 
 		[EnabledInDm(false)]
 		[SlashCommand("listen", "Sends you messages when a player searches for these games.")]
-		public async Task ListenMatchesSlashCommandAsync(string gameIds, int? hours = null) {
+		public async Task ListenMatchesSlashCommandAsync(string? gameIds = null, int? hours = null) {
 			try {
 				await DeferAsync(ephemeral: true);
 
-				if (ContentFilter.ContainsForbidden(gameIds)) {
+				if (gameIds != null && ContentFilter.ContainsForbidden(gameIds)) {
 					var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameIds);
 
 					await ModifyOriginalResponseAsync(x => {
@@ -35,16 +38,27 @@ namespace DotemDiscord.SlashCommands {
 					return;
 				}
 
-				var idArray = ContentFilter.CapSymbolCount(gameIds.Split(' '));
+				var serverId = Context.Guild.Id.ToString();
 
-				if (!idArray.Any(s => !string.IsNullOrWhiteSpace(s))) {
+				string[] idArray;
+				if (gameIds != null) {
+					idArray = [.. ContentFilter.CapSymbolCount(gameIds.Split(' '))
+						.Where(s => !string.IsNullOrWhiteSpace(s))];
+				} else {
+					idArray = [];
+				}
+
+				if (idArray.Length == 0) {
+					var channelDefaults = await _extensionContext.GetChannelDefaultSearchParamatersAsync(Context.Channel.Id.ToString());
+					idArray = channelDefaults.gameIds;
+				}
+
+				if (idArray.Length == 0) {
 					await ModifyOriginalResponseAsync(x => {
 						x.Content = "Please give non-empty Game Ids.";
 					});
 					return;
 				}
-
-				var serverId = Context.Guild.Id.ToString();
 
 				var names = await _matchmaker.GetGameNamesAsync(serverId, idArray);
 
