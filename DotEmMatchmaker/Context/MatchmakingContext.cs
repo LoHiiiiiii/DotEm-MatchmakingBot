@@ -443,7 +443,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		internal async Task<Dictionary<string, string>> GetAllGameAliasesAsync(string serverId) {
+		public async Task<Dictionary<string, string>> GetAllGameAliasesAsync(string serverId) {
 			using (var connection = GetOpenConnection()) {
 				var sql = $@"
 					SELECT 
@@ -626,7 +626,7 @@ namespace DotemMatchmaker.Context {
 			}
 		}
 
-		internal async Task<Dictionary<string, string>> GetAllGameNamesAsync(string serverId) {
+		public async Task<Dictionary<string, string>> GetAllGameNamesAsync(string serverId) {
 			using (var connection = GetOpenConnection()) {
 				var sql = $@"
 					SELECT 

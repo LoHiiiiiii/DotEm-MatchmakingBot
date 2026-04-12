@@ -3,6 +3,7 @@ using Discord.WebSocket;
 using DotemDiscord.Utils;
 using Discord;
 using DotemMatchmaker;
+using DotemMatchmaker.Context;
 using System.Text;
 using Discord.Net;
 
@@ -10,9 +11,11 @@ namespace DotemDiscord.SlashCommands {
 	public class NameSlashCommands : InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>> {
 
 		private readonly Matchmaker _matchmaker;
+		private readonly MatchmakingContext _matchmakingContext;
 
-		public NameSlashCommands(Matchmaker matchmaker) {
+		public NameSlashCommands(Matchmaker matchmaker, MatchmakingContext matchmakingContext) {
 			_matchmaker = matchmaker;
+			_matchmakingContext = matchmakingContext;
 		}
 
 		[EnabledInDm(false)]
@@ -198,7 +201,7 @@ namespace DotemDiscord.SlashCommands {
 			try {
 				await DeferAsync(true);
 
-				var aliases = await _matchmaker.GetAllGameAliasesAsync(Context.Guild.Id.ToString());
+				var aliases = await _matchmakingContext.GetAllGameAliasesAsync(Context.Guild.Id.ToString());
 				var aliasGameIds = new Dictionary<string, string>();
 				foreach (var kvp in aliases) {
 					if (!aliasGameIds.ContainsKey(kvp.Value)) {
@@ -208,17 +211,20 @@ namespace DotemDiscord.SlashCommands {
 					}
 				}
 
-				var names = await _matchmaker.GetAllGameNamesAsync(Context.Guild.Id.ToString());
+				var names = await _matchmakingContext.GetAllGameNamesAsync(Context.Guild.Id.ToString());
 				var ids = aliasGameIds.Keys.Concat(names.Keys).Distinct();
 
 				var nameRows = ids
 					.OrderBy(id => id)
 					.OrderBy(id => names.GetValueOrDefault(id) ?? "")
-					.Select(id =>
-						$"{id}{(aliasGameIds.ContainsKey(id) ? $" ({aliasGameIds[id]})" : "")}{(names.ContainsKey(id) ? $" - {names[id]}" : "")}")
+					.Select(id => {
+						var aliasStr = aliasGameIds.TryGetValue(id, out var alias) ? $" ({alias})" : "";
+						var nameStr = names.TryGetValue(id, out var name) ? $" - {name}" : "";
+						return $"{id}{aliasStr}{nameStr}";
+					})
 					.ToArray();
 
-				if (!nameRows.Any()) {
+				if (nameRows.Length == 0) {
 					await ModifyOriginalResponseAsync(x => {
 						x.Content = "No registered games on this server.";
 					});
@@ -231,7 +237,7 @@ namespace DotemDiscord.SlashCommands {
 				for (int i = 0; i < nameRows.Length; ++i) {
 					var value = nameRows[i];
 					if (value.Length > DISCORD_MESSAGE_LENGTH_MAX) {
-						value = value.Substring(0, DISCORD_MESSAGE_LENGTH_MAX);
+						value = value[..DISCORD_MESSAGE_LENGTH_MAX];
 					}
 
 					builder.Append(value);

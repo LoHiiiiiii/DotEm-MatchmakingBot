@@ -322,11 +322,6 @@ namespace DotemMatchmaker {
 			} finally { sessionSemaphore.Release(); }
 		}
 
-		public virtual async Task<Dictionary<string, string>> GetAllGameAliasesAsync(string serverId) {
-			await sessionSemaphore.WaitAsync();
-			try { return await _context.GetAllGameAliasesAsync(serverId); } finally { sessionSemaphore.Release(); }
-		}
-
 		public virtual async Task<IEnumerable<(string serverId, string gameId, string aliasGameId)>> GetAllGameAliasesWithServerAsync() {
 			await sessionSemaphore.WaitAsync();
 			try { return await _context.GetAllGameAliasesWithServerAsync(); } finally { sessionSemaphore.Release(); }
@@ -354,16 +349,6 @@ namespace DotemMatchmaker {
 					stopped: []
 					);
 			} finally { sessionSemaphore.Release(); }
-		}
-
-		public virtual async Task<Dictionary<string, string>> GetAllGameNamesAsync(string serverId) {
-			await sessionSemaphore.WaitAsync();
-			try { return await _context.GetAllGameNamesAsync(serverId); } finally { sessionSemaphore.Release(); }
-		}
-
-		public virtual async Task<Dictionary<string, string>> GetGameNamesAsync(string serverId, params string[] gameIds) {
-			await sessionSemaphore.WaitAsync();
-			try { return await _context.GetGameNamesAsync(serverId, gameIds); } finally { sessionSemaphore.Release(); }
 		}
 
 		public virtual async Task DeleteGameNamesAsync(string serverId, params string[] gameIds) {

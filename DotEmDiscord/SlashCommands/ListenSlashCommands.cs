@@ -1,7 +1,6 @@
 ﻿using Discord.Interactions;
 using Discord.WebSocket;
 using DotemDiscord.Utils;
-using DotemMatchmaker;
 using DotemMatchmaker.Context;
 using DotemExtensions;
 using Discord;
@@ -10,12 +9,10 @@ using Discord.Net;
 namespace DotemDiscord.SlashCommands {
 	public class ListenSlashCommands : InteractionModuleBase<SocketInteractionContext<SocketSlashCommand>> {
 
-		private readonly Matchmaker _matchmaker;
 		private readonly MatchmakingContext _matchmakingContext;
 		private readonly ExtensionContext _extensionContext;
 
-		public ListenSlashCommands(Matchmaker matchmaker, MatchmakingContext matchmakingContext, ExtensionContext extensionContext) {
-			_matchmaker = matchmaker;
+		public ListenSlashCommands(MatchmakingContext matchmakingContext, ExtensionContext extensionContext) {
 			_matchmakingContext = matchmakingContext;
 			_extensionContext = extensionContext;
 		}
@@ -60,12 +57,12 @@ namespace DotemDiscord.SlashCommands {
 					return;
 				}
 
-				var names = await _matchmaker.GetGameNamesAsync(serverId, idArray);
+				var names = await _matchmakingContext.GetGameNamesAsync(serverId, idArray);
 
-				DateTimeOffset? expireTime = hours != null ? DateTimeOffset.Now.AddHours((double)hours!) : null;
+				DateTimeOffset? expireTime = hours != null ? DateTimeOffset.Now.AddHours((double)hours) : null;
 				await _matchmakingContext.AddMatchListenAsync(serverId, Context.User.Id.ToString(), expireTime, idArray);
 
-				var natural = MessageStructures.GetNaturalLanguageString(names.Values.ToArray());
+				var natural = MessageStructures.GetNaturalLanguageString([.. names.Values]);
 
 				await ModifyOriginalResponseAsync(x => {
 					x.Content = $"Listening for {natural} {(hours == null

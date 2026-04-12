@@ -93,16 +93,17 @@ namespace DotemExtensions {
 						channelDefault
 					WHERE
 						gameIds = $gameId
-						OR gameIds LIKE $gameIdPrefix
-						OR gameIds LIKE $gameIdSuffix
-						OR gameIds LIKE $gameIdMiddle
+						OR gameIds LIKE $gameIdPrefix ESCAPE '\'
+						OR gameIds LIKE $gameIdSuffix ESCAPE '\'
+						OR gameIds LIKE $gameIdMiddle ESCAPE '\'
 				";
 
+				var escaped = gameId.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 				var result = await connection.QueryAsync(sql, new {
 					gameId,
-					gameIdPrefix = $"{gameId} %",
-					gameIdSuffix = $"% {gameId}",
-					gameIdMiddle = $"% {gameId} %"
+					gameIdPrefix = $"{escaped} %",
+					gameIdSuffix = $"% {escaped}",
+					gameIdMiddle = $"% {escaped} %"
 				});
 
 				if (!result.Any()) {

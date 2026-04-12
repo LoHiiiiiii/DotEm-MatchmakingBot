@@ -1,19 +1,16 @@
 ﻿using Discord.Commands;
 using DotemDiscord.Utils;
 using Discord;
-using DotemMatchmaker;
 using DotemMatchmaker.Context;
 using DotemExtensions;
 
 namespace DotemDiscord.SlashCommands {
 	public class ListenTextCommands : ModuleBase<SocketCommandContext> {
 
-		private readonly Matchmaker _matchmaker;
 		private readonly MatchmakingContext _matchmakingContext;
 		private readonly ExtensionContext _extensionContext;
 
-		public ListenTextCommands(Matchmaker matchmaker, MatchmakingContext matchmakingContext, ExtensionContext extensionContext) {
-			_matchmaker = matchmaker;
+		public ListenTextCommands(MatchmakingContext matchmakingContext, ExtensionContext extensionContext) {
 			_matchmakingContext = matchmakingContext;
 			_extensionContext = extensionContext;
 		}
@@ -64,10 +61,10 @@ namespace DotemDiscord.SlashCommands {
 				var serverId = Context.Guild.Id.ToString();
 				var names = await _matchmakingContext.GetGameNamesAsync(serverId, gameIds);
 
-				DateTimeOffset? expireTime = hours != null ? DateTimeOffset.Now.AddHours((double)hours!) : null;
+				DateTimeOffset? expireTime = hours != null ? DateTimeOffset.Now.AddHours((double)hours) : null;
 				await _matchmakingContext.AddMatchListenAsync(serverId, Context.User.Id.ToString(), expireTime, gameIds);
 
-				var natural = MessageStructures.GetNaturalLanguageString(names.Values.ToArray());
+				var natural = MessageStructures.GetNaturalLanguageString([.. names.Values]);
 
 				await Context.Message.ReplyAsync(
 					text: $"Listening for {natural} {(hours == null ? "forever" : $"for {hours} hours")}."
