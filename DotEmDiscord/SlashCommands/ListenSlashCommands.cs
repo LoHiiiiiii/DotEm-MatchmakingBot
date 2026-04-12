@@ -21,7 +21,7 @@ namespace DotemDiscord.SlashCommands {
 		[SlashCommand("listen", "Sends you messages when a player searches for these games.")]
 		public async Task ListenMatchesSlashCommandAsync(string gameIds, int? hours = null) {
 			try {
-				await DeferAsync();
+				await DeferAsync(ephemeral: true);
 
 				if (ContentFilter.ContainsForbidden(gameIds)) {
 					var forbiddenStructure = MessageStructures.GetForbiddenStructure(gameIds);
@@ -36,6 +36,13 @@ namespace DotemDiscord.SlashCommands {
 				}
 
 				var idArray = ContentFilter.CapSymbolCount(gameIds.Split(' '));
+
+				if (!idArray.Any(s => !string.IsNullOrWhiteSpace(s))) {
+					await ModifyOriginalResponseAsync(x => {
+						x.Content = "Please give non-empty Game Ids.";
+					});
+					return;
+				}
 
 				var serverId = Context.Guild.Id.ToString();
 
@@ -60,7 +67,7 @@ namespace DotemDiscord.SlashCommands {
 			}
 		}
 
-		[SlashCommand("show-listens", "Shows what games you are listening for.")]
+		[SlashCommand("show-listens-sl", "Shows what games you are listening.")]
 		public async Task ShowListensSlashCommandAsync() {
 			try {
 				await DeferAsync(ephemeral: true);

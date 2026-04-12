@@ -40,9 +40,19 @@ namespace DotemDiscord.SlashCommands {
 					return;
 				}
 
-				(var gameIds, var hours) = ParseCommands(commands);
+				(var rawIds, var hours) = ParseCommands(commands);
+				var gameIds = ContentFilter.CapSymbolCount(rawIds);
+
+				if (!gameIds.Any(s => !string.IsNullOrWhiteSpace(s))) {
+					await Context.Message.ReplyAsync(
+						text: "Please give non-empty Game Ids.",
+						allowedMentions: AllowedMentions.None
+					);
+					return;
+				}
+
 				var serverId = Context.Guild.Id.ToString();
-				var names = (await _matchmakingContext.GetGameNamesAsync(serverId, gameIds));
+				var names = await _matchmakingContext.GetGameNamesAsync(serverId, gameIds);
 
 				DateTimeOffset? expireTime = hours != null ? DateTimeOffset.Now.AddHours((double)hours!) : null;
 				await _matchmakingContext.AddMatchListenAsync(serverId, Context.User.Id.ToString(), expireTime, gameIds);
@@ -52,6 +62,64 @@ namespace DotemDiscord.SlashCommands {
 				await Context.Message.ReplyAsync(
 					text: $"Listening for {natural} {(hours == null ? "forever" : $"for {hours} hours")}."
 				);
+			} catch (Exception e) {
+				ExceptionHandling.ReportExceptionToFile(e);
+				if (e is TimeoutException) return;
+				await ExceptionHandling.ReportTextCommandExceptionAsync(Context.Message);
+			}
+		}
+
+		[Command("sl", RunMode = RunMode.Async)]
+		[Alias("show-listens")]
+		public async Task ListListensTextCommandAsync() {
+			try {
+				static string ExpiryString(DateTimeOffset? expireTime) => expireTime == null
+					? "forever"
+					: $"until <t:{expireTime.Value.ToUnixTimeSeconds()}:f>";
+
+				var userId = Context.User.Id.ToString();
+
+				if (Context.Guild != null) {
+					var serverId = Context.Guild.Id.ToString();
+					var listens = (await _matchmakingContext.GetUserServerListensAsync(serverId, userId)).ToArray();
+
+					if (!listens.Any()) {
+						await Context.Message.ReplyAsync(text: "Not listening for any games in this server.");
+						return;
+					}
+
+					var names = await _matchmakingContext.GetGameNamesAsync(serverId, listens.Select(l => l.gameId).ToArray());
+					var lines = listens.Select(l => {
+						var name = names.GetValueOrDefault(l.gameId, l.gameId);
+						var display = name != l.gameId ? $"{name} ({l.gameId})" : l.gameId;
+						return $"- {display}: {ExpiryString(l.expireTime)}";
+					});
+					await Context.Message.ReplyAsync(text: string.Join("\n", lines));
+				} else {
+					var listens = (await _matchmakingContext.GetUserListensAsync(userId)).ToArray();
+
+					if (!listens.Any()) {
+						await Context.Message.ReplyAsync(text: "Not listening for any games.");
+						return;
+					}
+
+					var sections = new List<string>();
+
+					foreach (var serverGroup in listens.GroupBy(l => l.serverId)) {
+						var guild = Context.Client.GetGuild(ulong.Parse(serverGroup.Key));
+						var serverName = guild?.Name ?? serverGroup.Key;
+						var serverGameIds = serverGroup.Select(l => l.gameId).ToArray();
+						var names = await _matchmakingContext.GetGameNamesAsync(serverGroup.Key, serverGameIds);
+						var gameLines = serverGroup.Select(l => {
+							var name = names.GetValueOrDefault(l.gameId, l.gameId);
+							var display = name != l.gameId ? $"{name} ({l.gameId})" : l.gameId;
+							return $"- {display}: {ExpiryString(l.expireTime)}";
+						});
+						sections.Add($"**{serverName}**\n{string.Join("\n", gameLines)}");
+					}
+
+					await Context.Message.ReplyAsync(text: string.Join("\n\n", sections));
+				}
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
@@ -108,6 +176,7 @@ namespace DotemDiscord.SlashCommands {
 			List<int> times = new List<int>();
 
 			for (int i = 0; i < split.Length; i++) {
+				if (string.IsNullOrWhiteSpace(split[i])) continue;
 				if (int.TryParse(split[i], out var parsed)) {
 					if (parsed > 0) times.Add(parsed);
 					continue;
