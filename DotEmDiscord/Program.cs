@@ -15,6 +15,7 @@ namespace DotemDiscord {
 	public class Program {
 		private readonly IServiceProvider _serviceProvider;
 		private readonly IConfiguration _config;
+		private bool _readyHandled = false;
 
 		public Program() {
 			var builder = new ConfigurationBuilder();
@@ -72,6 +73,9 @@ namespace DotemDiscord {
 			var client = _serviceProvider.GetRequiredService<DiscordSocketClient>();
 
 			client.Ready += async () => {
+				if (_readyHandled) { return; }
+				_readyHandled = true;
+
 				_serviceProvider.GetRequiredService<DiscordContext>().Initialize();
 				_serviceProvider.GetRequiredService<MatchmakingContext>().Initialize();
 				_serviceProvider.GetRequiredService<ExtensionContext>().Initialize();

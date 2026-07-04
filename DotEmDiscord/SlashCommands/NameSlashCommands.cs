@@ -56,6 +56,8 @@ namespace DotemDiscord.SlashCommands {
 			} catch (Exception e) {
 				ExceptionHandling.ReportExceptionToFile(e);
 				if (e is TimeoutException) return;
+				if (e is HttpException unknown && unknown.DiscordCode == DiscordErrorCode.UnknownInteraction) return;
+				if (e is HttpException acknowledged && acknowledged.DiscordCode == DiscordErrorCode.InteractionHasAlreadyBeenAcknowledged) return;
 				await ExceptionHandling.ReportInteractionExceptionAsync(Context.Interaction);
 			}
 		}
